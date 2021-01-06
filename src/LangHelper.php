@@ -42,7 +42,9 @@ class LangHelper
     /**
      * Get a global translation
      *
-     * @param string $entity
+     * By default all global translation are stored under the Global key
+     *
+     * @param string $entity If no entity is specified, Global is assumed
      * @return string
      */
     public static function globalTranslation($entity)
