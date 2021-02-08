@@ -107,7 +107,7 @@ class LangHelper
             return;
         }
 
-        self::persistLocaleIfCookiesAreAllowed();
+        self::persistLocale();
     }
 
     /**
