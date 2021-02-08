@@ -91,7 +91,7 @@ class LangHelper
         }
 
         // If we choose to persist cookies, we should check our cookie consent first
-        $dont_persist = true;
+        $dont_persist = $persist;
         // cookie consent from osano
         $status = Cookie::get('cookieconsent_status');
         if (strlen($status) && $status == 'allow') {

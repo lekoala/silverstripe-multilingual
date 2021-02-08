@@ -14,6 +14,13 @@ The `LangHelper` class provide a consistent i18n function regardless of Fluent b
 
 You can call global translation under the "Global" entity. These are accessible with LangHelper::globalTranslation or g() shortcut.
 
+## FluentLocale only if cookies are enabled
+
+This module disable by default `persist_cookie` for Fluent.
+
+You need to make sure to call `LangHelper::persistLocaleIfCookiesAreAllowed` (works with two types of cookie consent modules)
+or call with your own logic `LangHelper::persistLocale`.
+
 ## Improved text collector task
 
 ![ConfigurableI18nTextCollectorTask](docs/ConfigurableI18nTextCollectorTask.png "ConfigurableI18nTextCollectorTask")
