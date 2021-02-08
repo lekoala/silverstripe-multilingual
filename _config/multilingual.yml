@@ -1,3 +1,6 @@
 ---
 Name: multilingual
 ---
+TractorCow\Fluent\Middleware\DetectLocaleMiddleware:
+  # Call LangHelper:persistLocaleIfCookiesAreAllowed instead
+  persist_cookie: false

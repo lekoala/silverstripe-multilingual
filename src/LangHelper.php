@@ -3,8 +3,14 @@
 namespace LeKoala\Multilingual;
 
 use Exception;
+use SilverStripe\Admin\LeftAndMain;
+use SilverStripe\Control\Controller;
 use SilverStripe\i18n\i18n;
+use SilverStripe\Control\Cookie;
+use SilverStripe\Control\Session;
+use SilverStripe\Control\Director;
 use TractorCow\Fluent\Model\Locale;
+use SilverStripe\Core\Config\Config;
 use TractorCow\Fluent\State\FluentState;
 use SilverStripe\Core\Config\Configurable;
 
@@ -35,6 +41,12 @@ class LangHelper
     private static $default_locales = [];
 
     /**
+     * @config
+     * @var boolean
+     */
+    private static $persist_cookie = true;
+
+    /**
      * @var array
      */
     protected static $locale_cache = [];
@@ -54,6 +66,74 @@ class LangHelper
             array_unshift($parts, self::GLOBAL_ENTITY);
         }
         return i18n::_t(implode('.', $parts), $entity);
+    }
+
+    /**
+     * Call this to make sure we are not setting any cookies that has
+     * not been accepted
+     *
+     * @return void
+     */
+    public static function persistLocaleIfCookiesAreAllowed()
+    {
+        if (headers_sent()) {
+            return;
+        }
+
+        $class = \TractorCow\Fluent\Middleware\DetectLocaleMiddleware::class;
+        if (!class_exists($class)) {
+            return;
+        }
+
+        $persist = static::config()->persist_cookie;
+        if (!$persist) {
+            return;
+        }
+
+        // If we choose to persist cookies, we should check our cookie consent first
+        $dont_persist = true;
+        // cookie consent from osano
+        $status = Cookie::get('cookieconsent_status');
+        if (strlen($status) && $status == 'allow') {
+            $dont_persist = false;
+        }
+        // cookie from cookieconsent
+        $status = Cookie::get('cookie_consent_user_accepted');
+        if (strlen($status) && $status == 'true') {
+            $dont_persist = false;
+        }
+
+        if ($dont_persist) {
+            return;
+        }
+
+        // Persist according to fluent settings
+        $curr = Controller::curr();
+        $request = $curr->getRequest();
+
+        $secure = Director::is_https($request)
+            && Session::config()->get('cookie_secure');
+
+        $persistIds = $class::config()->get('persist_ids');
+        $persistKey = FluentState::singleton()->getIsFrontend()
+            ? $persistIds['frontend']
+            : $persistIds['cms'];
+
+        $locale = $request->getSession()->get($persistKey);
+        // If session is not started or set, it may not be set
+        if (!$locale) {
+            $locale = self::get_locale();
+        }
+
+        Cookie::set(
+            $persistKey,
+            $locale,
+            $class::config()->get('persist_cookie_expiry'),
+            $class::config()->get('persist_cookie_path'),
+            $class::config()->get('persist_cookie_domain'),
+            $secure,
+            $class::config()->get('persist_cookie_http_only')
+        );
     }
 
     /**
