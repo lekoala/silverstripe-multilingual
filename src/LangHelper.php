@@ -107,7 +107,21 @@ class LangHelper
             return;
         }
 
-        // Persist according to fluent settings
+        self::persistLocaleIfCookiesAreAllowed();
+    }
+
+    /**
+     * Persist locale according to fluent settings
+     *
+     * @return void
+     */
+    public static function persistLocale()
+    {
+        $class = \TractorCow\Fluent\Middleware\DetectLocaleMiddleware::class;
+        if (!class_exists($class)) {
+            return;
+        }
+
         $curr = Controller::curr();
         $request = $curr->getRequest();
 
