@@ -54,7 +54,7 @@ class GoogleTranslateHelper
         if (!$result) {
             throw new Exception("Failed to fetch content from $url");
         }
-        $data = json_decode($result, JSON_OBJECT_AS_ARRAY);
+        $data = json_decode($result, true);
         if (!$data) {
             throw new Exception("Failed to decode json : " . json_last_error_msg());
         }
@@ -129,7 +129,7 @@ class GoogleTranslateHelper
         if (!$result) {
             throw new Exception("Failed to fetch content from $url");
         }
-        $data = json_decode($result, JSON_OBJECT_AS_ARRAY);
+        $data = json_decode($result, true);
         if (!$data) {
             throw new Exception("Failed to decode json : " . json_last_error_msg());
         }

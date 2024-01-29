@@ -18,12 +18,12 @@ use SilverStripe\Core\Manifest\ModuleLoader;
 trait BuildTaskTools
 {
     /**
-     * @var SilverStripe\Control\HTTPRequest
+     * @var \SilverStripe\Control\HTTPRequest
      */
     protected $request;
 
     /**
-     * @var array
+     * @var array<string,array<mixed>>
      */
     protected $options = [];
 

@@ -3,14 +3,12 @@
 namespace LeKoala\Multilingual;
 
 use Exception;
-use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Control\Controller;
 use SilverStripe\i18n\i18n;
 use SilverStripe\Control\Cookie;
 use SilverStripe\Control\Session;
 use SilverStripe\Control\Director;
 use TractorCow\Fluent\Model\Locale;
-use SilverStripe\Core\Config\Config;
 use TractorCow\Fluent\State\FluentState;
 use SilverStripe\Core\Config\Configurable;
 
@@ -35,8 +33,8 @@ class LangHelper
      *   default_locales:
      *     - en_US
      *     - fr_FR
-     * @config
-     * @var array
+     *
+     * @var array<string>
      */
     private static $default_locales = [];
 
@@ -47,7 +45,7 @@ class LangHelper
     private static $persist_cookie = true;
 
     /**
-     * @var array
+     * @var array<string,string>
      */
     protected static $locale_cache = [];
 
@@ -59,7 +57,7 @@ class LangHelper
      * @param string $entity If no entity is specified, Global is assumed
      * @return string
      */
-    public static function globalTranslation($entity)
+    public static function globalTranslation(string $entity): string
     {
         $parts = explode('.', $entity);
         if (count($parts) == 1) {
@@ -68,20 +66,22 @@ class LangHelper
         return i18n::_t(implode('.', $parts), $entity);
     }
 
+    public static function hasFluent(): bool
+    {
+        return class_exists('\\TractorCow\\Fluent\\Middleware\\DetectLocaleMiddleware');
+    }
+
     /**
      * Call this to make sure we are not setting any cookies that has
      * not been accepted
-     *
-     * @return void
      */
-    public static function persistLocaleIfCookiesAreAllowed()
+    public static function persistLocaleIfCookiesAreAllowed(): void
     {
         if (headers_sent()) {
             return;
         }
 
-        $class = \TractorCow\Fluent\Middleware\DetectLocaleMiddleware::class;
-        if (!class_exists($class)) {
+        if (!self::hasFluent()) {
             return;
         }
 
@@ -112,13 +112,10 @@ class LangHelper
 
     /**
      * Persist locale according to fluent settings
-     *
-     * @return void
      */
-    public static function persistLocale()
+    public static function persistLocale(): void
     {
-        $class = \TractorCow\Fluent\Middleware\DetectLocaleMiddleware::class;
-        if (!class_exists($class)) {
+        if (!self::hasFluent()) {
             return;
         }
 
@@ -247,7 +244,7 @@ class LangHelper
     }
 
     /**
-     * @return array
+     * @return array<string>
      */
     public static function get_available_langs()
     {

@@ -1,12 +1,9 @@
 <?php
 
 // Add global translation helper
-
-use LeKoala\Multilingual\LangHelper;
-
 if (!function_exists('_g')) {
-    function _g($entity)
+    function _g(string $entity): string
     {
-        return LangHelper::globalTranslation($entity);
+        return \LeKoala\Multilingual\LangHelper::globalTranslation($entity);
     }
 }

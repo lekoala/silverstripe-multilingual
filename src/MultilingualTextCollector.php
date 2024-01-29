@@ -18,8 +18,6 @@ use SilverStripe\i18n\TextCollection\i18nTextCollector;
 
 /**
  * Improved text collector
- *
- * See https://github.com/silverstripe/silverstripe-framework/issues/7647
  */
 class MultilingualTextCollector extends i18nTextCollector
 {
@@ -34,7 +32,7 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $clearUnused = false;
 
     /**
-     * @var array
+     * @var array<string>
      */
     protected $restrictToModules = [];
 
@@ -54,7 +52,7 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $autoTranslate = false;
 
     /**
-     * @param $locale
+     * @param ?string $locale
      */
     public function __construct($locale = null)
     {
@@ -71,27 +69,25 @@ class MultilingualTextCollector extends i18nTextCollector
      * i18n feature, parse the _t() calls and write the resultant files
      * in the lang folder of each module.
      *
-     * @uses DataObject->collectI18nStatics()
-     *
-     * @param array $restrictToModules
+     * @param array<string> $restrictToModules
      * @param bool $mergeWithExisting Merge new master strings with existing
      * ones already defined in language files, rather than replacing them.
      * This can be useful for long-term maintenance of translations across
      * releases, because it allows "translation backports" to older releases
      * without removing strings these older releases still rely on.
-     * @return array $result
+     * @return array<string,mixed>|null $result
      */
     public function run($restrictToModules = null, $mergeWithExisting = false)
     {
         $entitiesByModule = $this->collect($restrictToModules, $mergeWithExisting);
         if (empty($entitiesByModule)) {
             Debug::message("No entities have been collected");
-            return;
+            return null;
         }
         if ($this->debug) {
             Debug::message("Debug mode is enabled and no files have been written");
             Debug::dump($entitiesByModule);
-            return;
+            return null;
         }
 
         // Write each module language file
@@ -113,9 +109,9 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Extract all strings from modules and return these grouped by module name
      *
-     * @param array $restrictToModules
+     * @param array<string> $restrictToModules
      * @param bool $mergeWithExisting
-     * @return array
+     * @return array<string,mixed>|null
      */
     public function collect($restrictToModules = null, $mergeWithExisting = null)
     {
@@ -130,6 +126,7 @@ class MultilingualTextCollector extends i18nTextCollector
             // Normalise module names
             $modules = array_filter(array_map(function ($name) {
                 $module = ModuleLoader::inst()->getManifest()->getModule($name);
+                //@phpstan-ignore-next-line
                 return $module ? $module->getName() : null;
             }, $restrictToModules));
             // No module, throw an exception
@@ -158,8 +155,8 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Merge all entities with existing strings
      *
-     * @param array $entitiesByModule
-     * @return array
+     * @param array<string,mixed> $entitiesByModule
+     * @return array<string,mixed>|null
      */
     protected function mergeWithExisting($entitiesByModule)
     {
@@ -236,7 +233,7 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Collect all entities grouped by module
      *
-     * @return array
+     * @return array<string,mixed>|null
      */
     protected function getEntitiesByModule()
     {
@@ -278,6 +275,7 @@ class MultilingualTextCollector extends i18nTextCollector
                 if (is_array($spec) && isset($spec['module'])) {
                     // Normalise name (in case non-composer name is specified)
                     $specModule = ModuleLoader::inst()->getManifest()->getModule($spec['module']);
+                    //@phpstan-ignore-next-line
                     if ($specModule) {
                         $specModuleName = $specModule->getName();
                     }
@@ -307,19 +305,25 @@ class MultilingualTextCollector extends i18nTextCollector
 
     /**
      * @param Module $module
-     * @return array
+     * @return array<string,mixed>|null
      */
     public function collectFromTheme(Module $module)
     {
         $themeDir = $this->getThemeDir();
         $themeFolder = Director::baseFolder() . '/' . $themeDir . '/Templates';
 
-        $files = $this->getFilesRecursive($themeFolder, null, 'ss');
+        $files = $this->getFilesRecursive($themeFolder, [], 'ss');
 
         $entities = [];
         foreach ($files as $file) {
             $fileContent = file_get_contents($file);
-            $entities = array_merge($entities, $this->collectFromTemplate($fileContent, $file, $module));
+            if (!$fileContent) {
+                continue;
+            }
+            $fileEntities = $this->collectFromTemplate($fileContent, $file, $module);
+            if ($fileEntities) {
+                $entities = array_merge($entities, $fileEntities);
+            }
         }
 
         return $entities;
@@ -331,8 +335,8 @@ class MultilingualTextCollector extends i18nTextCollector
      * @param string $content The text content of a parsed template-file
      * @param string $fileName The name of a template file when method is used in self-referencing mode
      * @param Module $module Module being collected
-     * @param array $parsedFiles
-     * @return array $entities An array of entities representing the extracted template function calls
+     * @param array<mixed> $parsedFiles
+     * @return array<string,mixed>|null $entities An array of entities representing the extracted template function calls
      */
     public function collectFromTemplate($content, $fileName, Module $module, &$parsedFiles = [])
     {
@@ -394,7 +398,7 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Get the value of clearUnused
      *
-     * @return  boolean
+     * @return boolean
      */
     public function getClearUnused()
     {
@@ -404,9 +408,9 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Set the value of clearUnused
      *
-     * @param  boolean  $clearUnused
+     * @param boolean $clearUnused
      *
-     * @return $this
+     * @return self
      */
     public function setClearUnused($clearUnused)
     {
@@ -417,7 +421,7 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Get the value of restrictToModules
      *
-     * @return  array
+     * @return array<string>
      */
     public function getRestrictToModules()
     {
@@ -427,9 +431,9 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Set the value of restrictToModules
      *
-     * @param  array  $restrictToModules
+     * @param array<string> $restrictToModules
      *
-     * @return $this
+     * @return self
      */
     public function setRestrictToModules($restrictToModules)
     {
@@ -440,7 +444,7 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Get the value of mergeWithExisting
      *
-     * @return  boolean
+     * @return boolean
      */
     public function getMergeWithExisting()
     {
@@ -450,9 +454,9 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Set the value of mergeWithExisting
      *
-     * @param  boolean  $mergeWithExisting
+     * @param boolean $mergeWithExisting
      *
-     * @return $this
+     * @return self
      */
     public function setMergeWithExisting($mergeWithExisting)
     {
@@ -463,7 +467,7 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Get the value of debug
      *
-     * @return  boolean
+     * @return boolean
      */
     public function getDebug()
     {
@@ -473,9 +477,9 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * Set the value of debug
      *
-     * @param  boolean  $debug
+     * @param boolean $debug
      *
-     * @return $this
+     * @return self
      */
     public function setDebug($debug)
     {
@@ -496,7 +500,7 @@ class MultilingualTextCollector extends i18nTextCollector
      * Set the value of autoTranslate
      *
      * @param boolean $autoTranslate
-     * @return $this
+     * @return self
      */
     public function setAutoTranslate($autoTranslate)
     {

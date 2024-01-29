@@ -2,6 +2,7 @@
 
 namespace LeKoala\Base\i18n;
 
+use Exception;
 use SilverStripe\Dev\Debug;
 use SilverStripe\Dev\BuildTask;
 use SilverStripe\Control\Director;
@@ -19,8 +20,17 @@ class TranslationsImportExportTask extends BuildTask
 {
     use BuildTaskTools;
 
+    /**
+     * @var string
+     */
     private static $segment = 'TranslationsImportExportTask';
+    /**
+     * @var string
+     */
     protected $title = "Translations import export task";
+    /**
+     * @var string
+     */
     protected $description = "Easily import and export translations";
 
     /**
@@ -68,7 +78,7 @@ class TranslationsImportExportTask extends BuildTask
         }
     }
 
-    protected function getLangPath($module)
+    protected function getLangPath(string $module): string
     {
         $langPath = ModuleResourceLoader::resourcePath($module . ':lang');
         return Director::baseFolder() . '/' . str_replace([':', '\\'], '/', $langPath);
@@ -89,10 +99,10 @@ class TranslationsImportExportTask extends BuildTask
         $data = null;
         if (is_file($excelFile)) {
             $this->message("Importing $excelFile");
-            $data = $this->importFromExcel($excelFile, $fullLangPath);
+            $data = $this->importFromExcel($excelFile);
         } elseif (is_file($csvFile)) {
             $this->message("Importing $csvFile");
-            $data = $this->importFromCsv($csvFile, $fullLangPath);
+            $data = $this->importFromCsv($csvFile);
         }
 
         if (!$data) {
@@ -137,7 +147,7 @@ class TranslationsImportExportTask extends BuildTask
 
     /**
      * @param string $file
-     * @return void
+     * @return array<int,array<mixed>>
      */
     public function importFromExcel($file)
     {
@@ -160,8 +170,8 @@ class TranslationsImportExportTask extends BuildTask
     }
 
     /**
-     * @param array $rows
-     * @return array
+     * @param array<array<mixed>> $rows
+     * @return array<int,array<mixed>>
      */
     protected function getDataFromRows($rows)
     {
@@ -171,7 +181,7 @@ class TranslationsImportExportTask extends BuildTask
             $header[0] = 'key'; // Fix some weird stuff
         }
         $count = count($header);
-        $data = array();
+        $data = [];
         foreach ($rows as $row) {
             while (count($row) < $count) {
                 $row[] = '';
@@ -183,15 +193,22 @@ class TranslationsImportExportTask extends BuildTask
         return $data;
     }
 
-    protected function importFromCsv($file, $fullLangPath)
+    /**
+     * @return array<int,array<mixed>>
+     */
+    protected function importFromCsv(string $file)
     {
-        $rows = array_map('str_getcsv', file($file));
+        $arr = file($file);
+        if (!$arr) {
+            return [];
+        }
+        $rows = array_map('str_getcsv', $arr);
         return $this->getDataFromRows($rows);
     }
 
     /**
-     * @param array $row
-     * @return array
+     * @param array<int,mixed> $row
+     * @return array<int,mixed>
      */
     protected function normalizeRow($row)
     {
@@ -200,7 +217,7 @@ class TranslationsImportExportTask extends BuildTask
                 continue;
             }
             if (strpos($value, '{"') === 0) {
-                $row[$idx] = json_decode($value, JSON_OBJECT_AS_ARRAY);
+                $row[$idx] = json_decode($value, true);
             }
         }
         return $row;
@@ -209,7 +226,7 @@ class TranslationsImportExportTask extends BuildTask
     /**
      * @param string $module
      * @param boolean $excel
-     * @param array $onlyLang
+     * @param array<string> $onlyLang
      * @return void
      */
     public function exportTranslations($module, $excel = true, $onlyLang = [])
@@ -217,6 +234,10 @@ class TranslationsImportExportTask extends BuildTask
         $fullLangPath = $this->getLangPath($module);
 
         $translationFiles = glob($fullLangPath . '/*.yml');
+        if ($translationFiles === false) {
+            $this->message("No yml");
+            return;
+        }
 
         // Collect messages in all lang
         $allMessages = [];
@@ -287,6 +308,9 @@ class TranslationsImportExportTask extends BuildTask
                 unlink($destinationFilename);
             }
             $fp = fopen($destinationFilename, 'w');
+            if ($fp === false) {
+                throw new Exception("Failed to open stream");
+            }
             // UTF 8 fix
             fprintf($fp, "\xEF\xBB\xBF");
             fputcsv($fp, $headers);
@@ -300,7 +324,7 @@ class TranslationsImportExportTask extends BuildTask
         $this->message("Translations written to $destinationFilename");
     }
 
-    public function isEnabled()
+    public function isEnabled(): bool
     {
         return Director::isDev();
     }

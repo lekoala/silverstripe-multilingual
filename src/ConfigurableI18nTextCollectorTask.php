@@ -16,8 +16,19 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
 {
     use BuildTaskTools;
 
+    /**
+     * @var string
+     */
     private static $segment = 'ConfigurableI18nTextCollectorTask';
+
+    /**
+     * @var string
+     */
     protected $title = "Configurable i18n Textcollector Task";
+
+    /**
+     * @var string
+     */
     protected $description = "
 		Traverses through files in order to collect the 'entity master tables'
 		stored in each module. Provides the ability to choose modules and clear/merge translations.
