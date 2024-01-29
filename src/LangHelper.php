@@ -29,7 +29,7 @@ class LangHelper
      * Use LangHelper::provisionLocales
      *
      * eg:
-     * LeKoala\Base\i18n\BaseI18n:
+     * LeKoala\Multilingual\LangHelper:
      *   default_locales:
      *     - en_US
      *     - fr_FR
@@ -156,7 +156,7 @@ class LangHelper
     {
         $locales = self::config()->default_locales;
         if (empty($locales)) {
-            throw new Exception("No locales defined in BaseI18n:default_locales");
+            throw new Exception("No locales defined in LangHelper:default_locales");
         }
 
         foreach ($locales as $loc) {
