@@ -51,7 +51,7 @@ This is available from a convenient interface.
 
 ## Compatibility
 
-Tested with 4.6 but should work on any ^4 projects
+Tested with ^5
 
 ## Maintainer
 
