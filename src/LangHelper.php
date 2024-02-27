@@ -125,6 +125,7 @@ class LangHelper
         $secure = Director::is_https($request)
             && Session::config()->get('cookie_secure');
 
+        $class = \TractorCow\Fluent\Middleware\DetectLocaleMiddleware::class;
         $persistIds = $class::config()->get('persist_ids');
         $persistKey = FluentState::singleton()->getIsFrontend()
             ? $persistIds['frontend']
