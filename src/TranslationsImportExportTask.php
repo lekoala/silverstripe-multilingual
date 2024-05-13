@@ -1,6 +1,6 @@
 <?php
 
-namespace LeKoala\Base\i18n;
+namespace LeKoala\Multilingual;
 
 use Exception;
 use SilverStripe\Dev\Debug;
