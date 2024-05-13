@@ -6,14 +6,12 @@ use Exception;
 use SilverStripe\Dev\Debug;
 use SilverStripe\View\SSViewer;
 use SilverStripe\Control\Director;
-use LeKoala\Multilingual\LangHelper;
 use SilverStripe\Core\Manifest\Module;
 use SilverStripe\i18n\Messages\Reader;
 use SilverStripe\i18n\Messages\Writer;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Manifest\ModuleLoader;
 use SilverStripe\i18n\TextCollection\Parser;
-use LeKoala\Base\Helpers\GoogleTranslateHelper;
 use SilverStripe\i18n\TextCollection\i18nTextCollector;
 use SilverStripe\Core\Path;
 
