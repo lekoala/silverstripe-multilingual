@@ -4,8 +4,6 @@ namespace LeKoala\Multilingual;
 
 use SilverStripe\i18n\i18n;
 use SilverStripe\Dev\BuildTask;
-use LeKoala\Base\i18n\TextCollector;
-use LeKoala\Multilingual\LangHelper;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Middleware\HTTPCacheControlMiddleware;
 
