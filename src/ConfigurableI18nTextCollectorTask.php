@@ -6,6 +6,8 @@ use SilverStripe\i18n\i18n;
 use SilverStripe\Dev\BuildTask;
 use LeKoala\Base\i18n\TextCollector;
 use LeKoala\Multilingual\LangHelper;
+use SilverStripe\Control\Director;
+use SilverStripe\Control\Middleware\HTTPCacheControlMiddleware;
 
 /**
  * A better task for collecting text
@@ -45,6 +47,8 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
      */
     public function run($request)
     {
+        HTTPCacheControlMiddleware::singleton()->disableCache(true);
+
         $this->request = $request;
         $this->increaseTimeLimitTo();
 
@@ -55,7 +59,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $this->addOption("auto_translate", "Translate new strings using google api (1s per translation)", false);
         $this->addOption("clear_unused", "Remove keys that are not used anymore", false);
         $this->addOption("debug", "Show debug messages and prevent write", false);
-        $this->addOption("module", "Module", null, $modules);
+        $this->addOption("module", "Module", 'default', $modules);
 
         $options = $this->askOptions();
 
@@ -66,17 +70,28 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $debug = $options['debug'];
         $auto_translate = $options['auto_translate'];
 
-        if ($locale && $module) {
-            $this->message("Proceeding with locale $locale for module $module");
-            $collector = MultilingualTextCollector::create($locale);
-            $collector->setMergeWithExisting($merge);
-            $collector->setClearUnused($clearUnused);
-            $collector->setDebug($debug);
-            $collector->setAutoTranslate($auto_translate);
-            $result = $collector->run([$module], $merge);
-            if ($result) {
-                foreach ($result as $module => $entities) {
-                    $this->message("Collected " . count($entities) . " messages for module $module");
+        $themes = Director::baseFolder() . '/themes';
+        $folders = glob($themes . '/*');
+        $toCollect = ['app'];
+        foreach ($folders as $f) {
+            $toCollect[] = 'themes:' . basename($f);
+        }
+        if ($module && $module != 'default') {
+            $toCollect = [$module];
+        }
+        if ($locale) {
+            foreach ($toCollect as $module) {
+                $this->message("Proceeding with locale $locale for module $module");
+                $collector = MultilingualTextCollector::create($locale);
+                $collector->setMergeWithExisting($merge);
+                $collector->setClearUnused($clearUnused);
+                $collector->setDebug($debug);
+                $collector->setAutoTranslate($auto_translate);
+                $result = $collector->run([$module], $merge);
+                if ($result) {
+                    foreach ($result as $module => $entities) {
+                        $this->message("Collected " . count($entities) . " messages for module $module");
+                    }
                 }
             }
         }
