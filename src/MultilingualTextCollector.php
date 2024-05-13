@@ -279,7 +279,7 @@ class MultilingualTextCollector extends i18nTextCollector
                     if ($this->debug) {
                         Debug::message("Removed $unusedEntity");
                     }
-                    unset($entitiesByModule[$unusedEntity]);
+                    unset($entitiesByModule[$module][$unusedEntity]);
                 }
             }
         }
