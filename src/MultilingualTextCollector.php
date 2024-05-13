@@ -15,6 +15,7 @@ use SilverStripe\Core\Manifest\ModuleLoader;
 use SilverStripe\i18n\TextCollection\Parser;
 use LeKoala\Base\Helpers\GoogleTranslateHelper;
 use SilverStripe\i18n\TextCollection\i18nTextCollector;
+use SilverStripe\Core\Path;
 
 /**
  * Improved text collector
@@ -90,6 +91,8 @@ class MultilingualTextCollector extends i18nTextCollector
             return null;
         }
 
+        $modules = $this->getModulesAndThemesExposed();
+
         // Write each module language file
         foreach ($entitiesByModule as $moduleName => $entities) {
             // Skip empty translations
@@ -99,11 +102,27 @@ class MultilingualTextCollector extends i18nTextCollector
 
             // Clean sorting prior to writing
             ksort($entities);
-            $module = ModuleLoader::inst()->getManifest()->getModule($moduleName);
+            $module = $modules[$moduleName];
             $this->write($module, $entities);
         }
 
         return $entitiesByModule;
+    }
+
+    protected function getModulesAndThemesExposed()
+    {
+        $refObject = new \ReflectionObject($this);
+        $refMethod = $refObject->getMethod('getModulesAndThemes');
+        $refMethod->setAccessible(true);
+        return $refMethod->invoke($this);
+    }
+
+    protected function getModuleNameExposed($arg1, $arg2)
+    {
+        $refObject = new \ReflectionObject($this);
+        $refMethod = $refObject->getMethod('getModuleName');
+        $refMethod->setAccessible(true);
+        return $refMethod->invoke($this, $arg1, $arg2);
     }
 
     /**
@@ -115,40 +134,82 @@ class MultilingualTextCollector extends i18nTextCollector
      */
     public function collect($restrictToModules = null, $mergeWithExisting = null)
     {
+        if ($mergeWithExisting === null) {
+            $mergeWithExisting = $this->getMergeWithExisting();
+        } else {
+            $this->setMergeWithExisting($mergeWithExisting);
+        }
         if ($restrictToModules === null) {
             $restrictToModules = $this->getRestrictToModules();
         } else {
             $this->setRestrictToModules($restrictToModules);
         }
 
-        // Restrict modules we update to just the specified ones (if any passed)
-        if (!empty($restrictToModules)) {
-            // Normalise module names
-            $modules = array_filter(array_map(function ($name) {
-                $module = ModuleLoader::inst()->getManifest()->getModule($name);
-                //@phpstan-ignore-next-line
-                return $module ? $module->getName() : null;
-            }, $restrictToModules));
-            // No module, throw an exception
-            if (empty($modules)) {
-                $availableModules = array_keys(ModuleLoader::inst()->getManifest()->getModules());
-                throw new Exception("Could not find any of these modules : " . implode(', ', $restrictToModules) . ". Available modules are : " . implode(', ', $availableModules));
+        return parent::collect($restrictToModules, $mergeWithExisting);
+    }
+
+    /**
+     * Collect all entities grouped by module
+     *
+     * @return array
+     */
+    protected function getEntitiesByModule()
+    {
+        $allModules = $this->getModulesAndThemesExposed();
+        $modules = [];
+        foreach ($this->restrictToModules as $m) {
+            if (array_key_exists($m, $allModules)) {
+                $modules[$m] = $allModules[$m];
             }
         }
 
-        if ($mergeWithExisting === null) {
-            $mergeWithExisting = $this->getMergeWithExisting();
-        } else {
-            $this->setMergeWithExisting($mergeWithExisting);
+        // A master string tables array (one mst per module)
+        $entitiesByModule = [];
+        foreach ($modules as $moduleName => $module) {
+            // we store the master string tables
+            $processedEntities = $this->processModule($module);
+            $moduleName = $this->getModuleNameExposed($moduleName, $module);
+            if (isset($entitiesByModule[$moduleName])) {
+                $entitiesByModule[$moduleName] = array_merge_recursive(
+                    $entitiesByModule[$moduleName],
+                    $processedEntities
+                );
+            } else {
+                $entitiesByModule[$moduleName] = $processedEntities;
+            }
+
+            // Extract all entities for "foreign" modules ('module' key in array form)
+            // @see CMSMenu::provideI18nEntities for an example usage
+            foreach ($entitiesByModule[$moduleName] as $fullName => $spec) {
+                $specModuleName = $moduleName;
+
+                // Rewrite spec if module is specified
+                if (is_array($spec) && isset($spec['module'])) {
+                    // Normalise name (in case non-composer name is specified)
+                    $specModule = ModuleLoader::inst()->getManifest()->getModule($spec['module']);
+                    if ($specModule) {
+                        $specModuleName = $specModule->getName();
+                    }
+                    unset($spec['module']);
+
+                    // If only element is default, simplify
+                    if (count($spec ?? []) === 1 && !empty($spec['default'])) {
+                        $spec = $spec['default'];
+                    }
+                }
+
+                // Remove from source module
+                if ($specModuleName !== $moduleName) {
+                    unset($entitiesByModule[$moduleName][$fullName]);
+                }
+
+                // Write to target module
+                if (!isset($entitiesByModule[$specModuleName])) {
+                    $entitiesByModule[$specModuleName] = [];
+                }
+                $entitiesByModule[$specModuleName][$fullName] = $spec;
+            }
         }
-
-        $entitiesByModule = $this->getEntitiesByModule();
-
-        // Optionally merge with existing master strings
-        if ($mergeWithExisting) {
-            $entitiesByModule = $this->mergeWithExisting($entitiesByModule);
-        }
-
         return $entitiesByModule;
     }
 
@@ -160,13 +221,10 @@ class MultilingualTextCollector extends i18nTextCollector
      */
     protected function mergeWithExisting($entitiesByModule)
     {
+        $modules = $this->getModulesAndThemesExposed();
         // For each module do a simple merge of the default yml with these strings
         foreach ($entitiesByModule as $module => $messages) {
-            $moduleInst = ModuleLoader::inst()->getManifest()->getModule($module);
-            $modulePath = $moduleInst->getRelativePath();
-
-            // Load existing localisations
-            $masterFile = "{$this->basePath}/{$modulePath}/lang/{$this->defaultLocale}.yml";
+            $masterFile = Path::join($modules[$module]->getPath(), 'lang', $this->defaultLocale . '.yml');
 
             // YamlReader fails silently if path is not correct
             if (!is_file($masterFile)) {
@@ -227,79 +285,6 @@ class MultilingualTextCollector extends i18nTextCollector
                 }
             }
         }
-        return $entitiesByModule;
-    }
-
-    /**
-     * Collect all entities grouped by module
-     *
-     * @return array<string,mixed>|null
-     */
-    protected function getEntitiesByModule()
-    {
-        $restrictToModules = $this->getRestrictToModules();
-        if (empty($restrictToModules)) {
-            throw new Exception("TextCollector does not support collecting from all modules");
-        }
-
-        // A master string tables array (one mst per module)
-        $entitiesByModule = array();
-        $modules = ModuleLoader::inst()->getManifest()->getModules();
-        foreach ($modules as $module) {
-            $moduleName = $module->getName();
-            if (!in_array($moduleName, $restrictToModules)) {
-                continue;
-            }
-
-            // we store the master string tables
-            $processedEntities = $this->processModule($module);
-
-            // in mysite, collect theme as well
-            if ($moduleName == 'mysite' || $moduleName == 'app') {
-                $themeEntities = $this->collectFromTheme($module);
-                $processedEntities = array_merge($processedEntities, $themeEntities);
-                ksort($processedEntities);
-            }
-
-            $entitiesByModule[$moduleName] = $processedEntities;
-
-            // Extract all entities for "foreign" modules ('module' key in array form)
-            foreach ($entitiesByModule[$moduleName] as $fullName => $spec) {
-                if (!is_array($spec)) {
-                    continue;
-                }
-
-                $specModuleName = $moduleName;
-
-                // Rewrite spec if module is specified
-                if (is_array($spec) && isset($spec['module'])) {
-                    // Normalise name (in case non-composer name is specified)
-                    $specModule = ModuleLoader::inst()->getManifest()->getModule($spec['module']);
-                    //@phpstan-ignore-next-line
-                    if ($specModule) {
-                        $specModuleName = $specModule->getName();
-                    }
-                    unset($spec['module']);
-
-                    // If only element is default, simplify
-                    if (count($spec) === 1 && !empty($spec['default'])) {
-                        $spec = $spec['default'];
-                    }
-                }
-
-                // Remove from source module
-                if ($specModuleName !== $moduleName) {
-                    unset($entitiesByModule[$moduleName][$fullName]);
-                }
-
-                // Write to target module
-                if (!isset($entitiesByModule[$specModuleName])) {
-                    $entitiesByModule[$specModuleName] = [];
-                }
-                $entitiesByModule[$specModuleName][$fullName] = $spec;
-            }
-        }
-
         return $entitiesByModule;
     }
 
