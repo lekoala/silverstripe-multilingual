@@ -1,6 +1,6 @@
 <?php
 
-namespace LeKoala\Multilingual\Helpers;
+namespace LeKoala\Multilingual;
 
 use Exception;
 
