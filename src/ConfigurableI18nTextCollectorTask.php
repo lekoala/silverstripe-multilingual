@@ -1,6 +1,6 @@
 <?php
 
-namespace LeKoala\Base\i18n;
+namespace LeKoala\Multilingual\i18n;
 
 use SilverStripe\i18n\i18n;
 use SilverStripe\Dev\BuildTask;
