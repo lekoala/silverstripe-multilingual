@@ -1,6 +1,6 @@
 <?php
 
-namespace LeKoala\Multilingual\i18n;
+namespace LeKoala\Multilingual;
 
 use SilverStripe\ORM\ArrayLib;
 use SilverStripe\Core\ClassInfo;
