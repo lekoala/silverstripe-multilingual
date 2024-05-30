@@ -36,7 +36,7 @@ class EasyNmtHelper
                 'text' => $sourceText
             ];
             $url = self::$baseUrl . '?' . http_build_query($params2);
-            $result = file_get_contents($url);
+            $result = @file_get_contents($url);
             if ($result) {
                 $jsonData = json_decode($result, 1);
                 if ($jsonData) {
@@ -53,7 +53,7 @@ class EasyNmtHelper
         ];
 
         $url = 'http://localhost:24080/translate?' . http_build_query($params);
-        $result = file_get_contents($url);
+        $result = @file_get_contents($url);
         if ($result) {
             $jsonData = json_decode($result, 1);
             if ($jsonData) {
