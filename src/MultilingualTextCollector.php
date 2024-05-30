@@ -253,7 +253,7 @@ class MultilingualTextCollector extends i18nTextCollector
                     $untranslatedMessages[$k] = $v;
                 }
             }
-            $toTranslate = $this->autoTranslateMode == 'new' ? $newMessages : $untranslatedMessages;
+            $toTranslate = $this->autoTranslateMode == 'all' ? $untranslatedMessages : $newMessages;
 
             // attempt auto translation
             if ($this->autoTranslate) {
