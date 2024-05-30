@@ -26,6 +26,9 @@ class EasyNmtHelper
             return $sourceText;
         }
 
+        $orgText = $sourceText;
+        $containsVar = str_contains($sourceText, '{');
+
         // use en as intermediate language
         if ($targetLang != 'en') {
             $params2 = [
@@ -56,6 +59,10 @@ class EasyNmtHelper
             if ($jsonData) {
                 $sourceText = $jsonData['translated'][0] ?? $sourceText;
             }
+        }
+
+        if ($containsVar && !str_contains($sourceText, '{')) {
+            return $orgText;
         }
 
         return $sourceText;
