@@ -51,6 +51,16 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $autoTranslate = false;
 
     /**
+     * @var string
+     */
+    protected $autoTranslateLang = null;
+
+    /**
+     * @var string
+     */
+    protected $autoTranslateMode = 'all';
+
+    /**
      * @param ?string $locale
      */
     public function __construct($locale = null)
@@ -236,20 +246,30 @@ class MultilingualTextCollector extends i18nTextCollector
             }
 
             $newMessages = array_diff_key($messages, $existingMessages);
+            $untranslatedMessages = [];
+            foreach ($existingMessages as $k => $v) {
+                $curr = $messages[$k] ?? null;
+                if ($v == $curr) {
+                    $untranslatedMessages[$k] = $v;
+                }
+            }
+            $toTranslate = $this->autoTranslateMode == 'new' ? $newMessages : $untranslatedMessages;
 
             // attempt auto translation
             if ($this->autoTranslate) {
-                foreach ($newMessages as $newMessageKey => $newMessageVal) {
+                if ($this->autoTranslateLang) {
+                    EasyNmtHelper::$defaultLanguage = $this->autoTranslateLang;
+                }
+                foreach ($toTranslate as $newMessageKey => $newMessageVal) {
                     try {
                         if (is_array($newMessageVal)) {
                             $result = [];
                             foreach ($newMessageVal as $newMessageValItem) {
-                                $result[] = GoogleTranslateHelper::translate($newMessageValItem, $this->defaultLocale);
+                                $result[] = EasyNmtHelper::translate($newMessageValItem, $this->defaultLocale);
                             }
                         } else {
-                            $result = GoogleTranslateHelper::translate($newMessageVal, $this->defaultLocale);
+                            $result = EasyNmtHelper::translate($newMessageVal, $this->defaultLocale);
                         }
-                        sleep(1);
                         $messages[$newMessageKey] = $result;
                     } catch (Exception $ex) {
                         Debug::dump($ex->getMessage());
@@ -485,9 +505,11 @@ class MultilingualTextCollector extends i18nTextCollector
      * @param boolean $autoTranslate
      * @return self
      */
-    public function setAutoTranslate($autoTranslate)
+    public function setAutoTranslate($autoTranslate, $lang = null, $mode = 'new')
     {
         $this->autoTranslate = $autoTranslate;
+        $this->autoTranslateLang = $lang;
+        $this->autoTranslateMode = $mode;
         return $this;
     }
 }
