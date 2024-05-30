@@ -6,6 +6,7 @@ use Exception;
 
 /**
  * A simple helper to help translating strings
+ * @deprecated
  */
 class GoogleTranslateHelper
 {
