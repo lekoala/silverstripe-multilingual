@@ -76,6 +76,22 @@ trait BuildTaskTools
     }
 
     /**
+     * All modules + themes
+     *
+     * @return array
+     */
+    protected function getModulesAndThemes()
+    {
+        $themes = Director::baseFolder() . '/themes';
+        $folders = glob($themes . '/*');
+        $modules = $this->getModules();
+        foreach ($folders as $f) {
+            $modules['themes:' . basename($f)] = 'themes/' . basename($f);
+        }
+        return $modules;
+    }
+
+    /**
      * Get the request (and keep your imports clean :-) )
      *
      * @return HTTPRequest
