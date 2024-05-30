@@ -50,7 +50,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $this->request = $request;
         $this->increaseTimeLimitTo();
 
-        $modules = $this->getModules();
+        $modules = $this->getModulesAndThemes();
 
         $this->addOption("locale", "Locale to use", LangHelper::get_lang());
         $this->addOption("merge", "Merge with previous translations", true);
