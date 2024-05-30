@@ -45,7 +45,7 @@ class TranslationsImportExportTask extends BuildTask
     public function run($request)
     {
         $this->request = $request;
-        $modules = $this->getModules();
+        $modules = $this->getModulesAndThemes();
         $this->addOption("import", "Import translations", false);
         $this->addOption("export", "Export translations", false);
         $this->addOption("export_only", "Export only these lang (comma separated)");
@@ -121,8 +121,9 @@ class TranslationsImportExportTask extends BuildTask
         foreach ($langs as $lang) {
             $entities = [];
             foreach ($data as $row) {
-                $key = trim($row['key']);
+                $key = trim($row['\ufeffkey'] ?? $row['key'] ?? '');
                 if (!$key) {
+                    $this->message("invalid row " . json_encode($row));
                     continue;
                 }
                 $value = $row[$lang];
