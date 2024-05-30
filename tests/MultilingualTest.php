@@ -4,9 +4,9 @@ namespace LeKoala\Multilingual\Test;
 
 use SilverStripe\Dev\SapphireTest;
 use LeKoala\Multilingual\LangHelper;
-use LeKoala\Base\Helpers\GoogleTranslateHelper;
-use LeKoala\Base\i18n\MultilingualTextCollector;
-use LeKoala\Base\i18n\TranslationsImportExportTask;
+use LeKoala\Multilingual\GoogleTranslateHelper;
+use LeKoala\Multilingual\MultilingualTextCollector;
+use LeKoala\Multilingual\TranslationsImportExportTask;
 
 class MultilingualTest extends SapphireTest
 {
