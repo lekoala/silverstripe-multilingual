@@ -29,6 +29,13 @@ class EasyNmtHelper
         $orgText = $sourceText;
         $containsVar = str_contains($sourceText, '{');
 
+        $extractedVars = [];
+        if ($containsVar) {
+            $matches = [];
+            preg_match_all('/(\{[\w_]*?\})/', $sourceText, $matches);
+            $extractedVars = $matches[0] ?? [];
+        }
+
         // use en as intermediate language
         if ($targetLang != 'en') {
             $params2 = [
@@ -61,8 +68,18 @@ class EasyNmtHelper
             }
         }
 
+        // It has replaced all the {}, not good!
         if ($containsVar && !str_contains($sourceText, '{')) {
             return $orgText;
+        }
+
+        // Make sure we keep placeholders
+        if ($containsVar) {
+            preg_match_all('/(\{[\w_]*?\})/', $sourceText, $matches);
+            $newVars = $matches[0] ?? [];
+            foreach ($newVars as $idx => $v) {
+                $sourceText = str_replace($v, $extractedVars[$idx], $sourceText);
+            }
         }
 
         return $sourceText;
