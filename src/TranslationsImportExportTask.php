@@ -12,6 +12,7 @@ use SilverStripe\Core\Injector\Injector;
 use SilverStripe\i18n\Messages\YamlReader;
 use LeKoala\ExcelImportExport\ExcelImportExport;
 use SilverStripe\Core\Manifest\ModuleResourceLoader;
+use SilverStripe\i18n\i18n;
 
 /**
  * Helps exporting and importing labels from a csv or xls
@@ -48,6 +49,7 @@ class TranslationsImportExportTask extends BuildTask
         $modules = $this->getModulesAndThemes();
         $this->addOption("import", "Import translations", false);
         $this->addOption("export", "Export translations", false);
+        $this->addOption("export_untranslated", "Export untranslated", false);
         $this->addOption("export_only", "Export only these lang (comma separated)");
         $this->addOption("debug", "Show debug output and do not write files", false);
         $this->addOption("excel", "Use excel if possible (require excel-import-export module)", true);
@@ -59,6 +61,7 @@ class TranslationsImportExportTask extends BuildTask
         $excel = $options['excel'];
         $export = $options['export'];
         $export_only = $options['export_only'];
+        $export_untranslated = $options['export_untranslated'];
 
         $this->debug = $options['debug'];
 
@@ -71,7 +74,7 @@ class TranslationsImportExportTask extends BuildTask
                 if ($export_only) {
                     $onlyLang = explode(",", $export_only);
                 }
-                $this->exportTranslations($module, $excel, $onlyLang);
+                $this->exportTranslations($module, $excel, $onlyLang, $export_untranslated);
             }
         } else {
             $this->message("Please select a module");
@@ -118,8 +121,13 @@ class TranslationsImportExportTask extends BuildTask
         $count = count($header);
         $writer = Injector::inst()->create(Writer::class);
         $langs = array_slice($header, 1, $count);
+        $new = 0;
         foreach ($langs as $lang) {
-            $entities = [];
+            // $entities = [];
+
+            // keep original
+            $reader = new YamlReader;
+            $entities = $reader->read($lang, $fullLangPath . '/' . $lang . '.yml');
             foreach ($data as $row) {
                 $key = trim($row['\ufeffkey'] ?? $row['key'] ?? '');
                 if (!$key) {
@@ -130,6 +138,7 @@ class TranslationsImportExportTask extends BuildTask
                 if (is_string($value)) {
                     $value = trim($value);
                 }
+                $new++;
                 $entities[$key] = $value;
             }
             if (!$this->debug) {
@@ -138,7 +147,7 @@ class TranslationsImportExportTask extends BuildTask
                     $lang,
                     dirname($fullLangPath)
                 );
-                $this->message("Imported " . count($entities) . " messages in $lang");
+                $this->message("Imported $new messages in $lang");
             } else {
                 Debug::show($lang);
                 Debug::dump($entities);
@@ -228,9 +237,10 @@ class TranslationsImportExportTask extends BuildTask
      * @param string $module
      * @param boolean $excel
      * @param array<string> $onlyLang
+     * @param bool $untranslated
      * @return void
      */
-    public function exportTranslations($module, $excel = true, $onlyLang = [])
+    public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false)
     {
         $fullLangPath = $this->getLangPath($module);
 
@@ -244,13 +254,25 @@ class TranslationsImportExportTask extends BuildTask
         $allMessages = [];
         $headers = ['key'];
         $default = [];
+        $defaultFile = null;
+        $defaultLang = substr(i18n::get_locale(), 0, 2);
         foreach ($translationFiles as $translationFile) {
             $lang = pathinfo($translationFile, PATHINFO_FILENAME);
+            if ($lang == $defaultLang) {
+                $defaultFile = $translationFile;
+            }
             if (!empty($onlyLang) && !in_array($lang, $onlyLang)) {
                 continue;
             }
             $headers[] = $lang;
             $default[] = '';
+        }
+
+
+        $masterMessages = [];
+        if ($untranslated) {
+            $reader = new YamlReader;
+            $masterMessages = $reader->read($defaultLang, $defaultFile);
         }
 
         $i = 0;
@@ -263,6 +285,12 @@ class TranslationsImportExportTask extends BuildTask
             $messages = $reader->read($lang, $translationFile);
 
             foreach ($messages as $entityKey => $v) {
+                if ($untranslated) {
+                    if (isset($masterMessages[$entityKey]) && $masterMessages[$entityKey] != $v) {
+                        continue;
+                    }
+                }
+
                 if (!isset($allMessages[$entityKey])) {
                     $allMessages[$entityKey] = $default;
                 }
@@ -274,7 +302,8 @@ class TranslationsImportExportTask extends BuildTask
             }
             $i++;
         }
-        ksort($allMessages);
+        // don't sort this will be mess up git when merging later
+        // ksort($allMessages);
         if ($this->debug) {
             Debug::show($allMessages);
         }
