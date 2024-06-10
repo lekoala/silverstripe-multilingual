@@ -50,6 +50,7 @@ class TranslationsImportExportTask extends BuildTask
         $this->addOption("import", "Import translations", false);
         $this->addOption("export", "Export translations", false);
         $this->addOption("export_untranslated", "Export untranslated", false);
+        $this->addOption("export_auto_translate", "Translate exported strings", false);
         $this->addOption("export_only", "Export only these lang (comma separated)");
         $this->addOption("debug", "Show debug output and do not write files", false);
         $this->addOption("excel", "Use excel if possible (require excel-import-export module)", true);
@@ -62,6 +63,7 @@ class TranslationsImportExportTask extends BuildTask
         $export = $options['export'];
         $export_only = $options['export_only'];
         $export_untranslated = $options['export_untranslated'];
+        $export_auto_translate = $options['export_auto_translate'];
 
         $this->debug = $options['debug'];
 
@@ -74,7 +76,7 @@ class TranslationsImportExportTask extends BuildTask
                 if ($export_only) {
                     $onlyLang = explode(",", $export_only);
                 }
-                $this->exportTranslations($module, $excel, $onlyLang, $export_untranslated);
+                $this->exportTranslations($module, $excel, $onlyLang, $export_untranslated, $export_auto_translate);
             }
         } else {
             $this->message("Please select a module");
@@ -238,9 +240,10 @@ class TranslationsImportExportTask extends BuildTask
      * @param boolean $excel
      * @param array<string> $onlyLang
      * @param bool $untranslated
+     * @param bool $translate
      * @return void
      */
-    public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false)
+    public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false, $translate = false)
     {
         $fullLangPath = $this->getLangPath($module);
 
@@ -298,6 +301,12 @@ class TranslationsImportExportTask extends BuildTask
                 if (is_array($v)) {
                     $v = json_encode($v);
                 }
+
+                // Attempt auto translation / 200
+                if ($translate && count($allMessages) < 200) {
+                    $v = EasyNmtHelper::translate($v, $lang, $defaultLang);
+                }
+
                 $allMessages[$entityKey][$i] = $v;
             }
             $i++;
