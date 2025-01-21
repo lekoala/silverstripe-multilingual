@@ -257,20 +257,23 @@ class MultilingualTextCollector extends i18nTextCollector
 
             // attempt auto translation
             if ($this->autoTranslate) {
-                if ($this->autoTranslateLang) {
-                    EasyNmtHelper::$defaultLanguage = $this->autoTranslateLang;
-                }
+                $baseLangName = LangHelper::getLanguageName($this->autoTranslateLang);
+                $targetLangName = LangHelper::getLanguageName($this->defaultLocale);
+                $translator = new OllamaTowerInstruct();
                 foreach ($toTranslate as $newMessageKey => $newMessageVal) {
                     try {
                         if (is_array($newMessageVal)) {
                             $result = [];
-                            foreach ($newMessageVal as $newMessageValItem) {
-                                $result[] = EasyNmtHelper::translate($newMessageValItem, $this->defaultLocale);
+                            foreach ($newMessageVal as $newessageValKey => $newMessageValItem) {
+                                $result[$newessageValKey] = $translator->translate($newMessageValItem, $targetLangName, $baseLangName);
                             }
                         } else {
-                            $result = EasyNmtHelper::translate($newMessageVal, $this->defaultLocale);
+                            $result = $translator->translate($newMessageVal, $targetLangName, $baseLangName);
                         }
                         $messages[$newMessageKey] = $result;
+                        if ($this->autoTranslateMode == 'all') {
+                            $existingMessages[$newMessageKey] = $result;
+                        }
                     } catch (Exception $ex) {
                         Debug::dump($ex->getMessage());
                     }

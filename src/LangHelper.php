@@ -110,6 +110,20 @@ class LangHelper
         self::persistLocale();
     }
 
+    public static function getLanguageName($locale, $short = true)
+    {
+        $locale = self::get_locale_from_lang($locale);
+
+        $allLocales = i18n::getSources()->getKnownLocales();
+
+        $foundLocale = $allLocales[$locale] ?? null;
+        if ($foundLocale && $short) {
+            $foundLocale = preg_replace('/\s*\(.*?\)/', '', $foundLocale);
+            $foundLocale = ucfirst(trim($foundLocale));
+        }
+        return $foundLocale;
+    }
+
     /**
      * Persist locale according to fluent settings
      */
