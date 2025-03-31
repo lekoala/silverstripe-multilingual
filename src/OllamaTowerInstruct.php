@@ -69,6 +69,17 @@ class OllamaTowerInstruct
             $response = rtrim($response, '.');
         }
 
+        // No crazy {}
+        $includesParen = str_contains($string, '{}');
+        $translationIncludesParen = str_contains($string, '{}');
+        if (!$includesParen && $translationIncludesParen) {
+            $response = trim(str_replace('{}', '', $response));
+        }
+
+        // No spaces in { }
+        $response = str_replace('{ ', '{', $response);
+        $response = str_replace(' }', '}', $response);
+
         return $response;
     }
 
