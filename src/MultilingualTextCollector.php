@@ -230,6 +230,10 @@ class MultilingualTextCollector extends i18nTextCollector
     protected function mergeWithExisting($entitiesByModule)
     {
         $modules = $this->getModulesAndThemesExposed();
+
+        $max = 1000; // when using translate all, it could take a while otherwise
+        $i = 0;
+
         // For each module do a simple merge of the default yml with these strings
         foreach ($entitiesByModule as $module => $messages) {
             $masterFile = Path::join($modules[$module]->getPath(), 'lang', $this->defaultLocale . '.yml');
@@ -260,7 +264,12 @@ class MultilingualTextCollector extends i18nTextCollector
                 $baseLangName = LangHelper::getLanguageName($this->autoTranslateLang);
                 $targetLangName = LangHelper::getLanguageName($this->defaultLocale);
                 $translator = new OllamaTowerInstruct();
+
                 foreach ($toTranslate as $newMessageKey => $newMessageVal) {
+                    $i++;
+                    if ($i > $max) {
+                        continue;
+                    }
                     try {
                         if (is_array($newMessageVal)) {
                             $result = [];
