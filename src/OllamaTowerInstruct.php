@@ -25,8 +25,9 @@ class OllamaTowerInstruct
 
     public function expandLang(string $lang): string
     {
+        $lc = strtolower($lang);
         // English, Portuguese, Spanish, French, German, Dutch, Italian, Korean, Chinese, Russian
-        return match ($lang) {
+        return match ($lc) {
             'en' => 'English',
             'fr' => 'French',
             'nl' => 'Dutch',
