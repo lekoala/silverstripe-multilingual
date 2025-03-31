@@ -261,8 +261,8 @@ class MultilingualTextCollector extends i18nTextCollector
 
             // attempt auto translation
             if ($this->autoTranslate) {
-                $baseLangName = LangHelper::getLanguageName($this->autoTranslateLang);
-                $targetLangName = LangHelper::getLanguageName($this->defaultLocale);
+                $baseLangName = $this->autoTranslateLang;
+                $targetLangName = $this->defaultLocale;
                 $translator = new OllamaTowerInstruct();
 
                 foreach ($toTranslate as $newMessageKey => $newMessageVal) {
