@@ -23,6 +23,23 @@ class OllamaTowerInstruct
         $this->url = $url ?? self::BASE_URL;
     }
 
+    public function expandLang(string $lang): string
+    {
+        // English, Portuguese, Spanish, French, German, Dutch, Italian, Korean, Chinese, Russian
+        return match ($lang) {
+            'en' => 'English',
+            'fr' => 'French',
+            'nl' => 'Dutch',
+            'it' => 'Italian',
+            'de' => 'German',
+            'pt' => 'Portuguese',
+            'ko' => 'Korean',
+            'zh' => 'Chinese',
+            'ru' => 'Russian',
+            default => $lang
+        };
+    }
+
     public function translate(?string $string, string $to, string $from)
     {
         /*
@@ -31,13 +48,27 @@ class OllamaTowerInstruct
         ]
         */
 
+        $string = $string ?? '';
+        $from = $this->expandLang($from);
+        $to = $this->expandLang($to);
+
         $prompt = "Translate the following text from $from into $to and keep variables between {} as is.\n$from: $string\n$to:";
 
         $result = $this->generate($prompt);
 
         $response = $result['response'] ?? '';
 
-        return trim($response);
+        // Avoid extra space
+        $response = trim($response);
+
+        // Make sure we don't get any extra ending dot
+        $endsWithDot = str_ends_with($string, '.');
+        $translationEndsWithDot = str_ends_with($response, '.');
+        if (!$endsWithDot && $translationEndsWithDot) {
+            $response = rtrim($response, '.');
+        }
+
+        return $response;
     }
 
     /**
