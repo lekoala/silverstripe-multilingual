@@ -141,7 +141,10 @@ class TranslationsImportExportTask extends BuildTask
                     $value = trim($value);
                 }
                 $new++;
-                $entities[$key] = $value;
+                // Only write non empty values
+                if ($value !== null) {
+                    $entities[$key] = $value;
+                }
             }
             if (!$this->debug) {
                 $writer->write(
