@@ -41,7 +41,7 @@ class MultilingualTest extends SapphireTest
         $res = ob_get_contents();
         ob_end_clean();
 
-        $this->assertContains("Éditer ce fichier", $res);
+        $this->assertStringContainsString("Éditer ce fichier", $res);
     }
 
     public function testTranslator()
