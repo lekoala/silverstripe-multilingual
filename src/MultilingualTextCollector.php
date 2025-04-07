@@ -19,9 +19,7 @@ use SilverStripe\Core\Path;
  * Improved text collector
  */
 class MultilingualTextCollector extends i18nTextCollector
-{
-    use BuildTaskTools;
-    
+{   
     /**
      * @var boolean
      */
