@@ -290,6 +290,8 @@ class TranslationsImportExportTask extends BuildTask
             $reader = new YamlReader;
             $messages = $reader->read($lang, $translationFile);
 
+            $translator = new OllamaTowerInstruct();
+
             foreach ($messages as $entityKey => $v) {
                 if ($untranslated) {
                     if (isset($masterMessages[$entityKey]) && $masterMessages[$entityKey] != $v) {
@@ -307,7 +309,7 @@ class TranslationsImportExportTask extends BuildTask
 
                 // Attempt auto translation / 200
                 if ($translate && count($allMessages) < 200) {
-                    $v = EasyNmtHelper::translate($v, $lang, $defaultLang);
+                    $v = $translator->translate($v, $lang, $defaultLang);
                 }
 
                 $allMessages[$entityKey][$i] = $v;
