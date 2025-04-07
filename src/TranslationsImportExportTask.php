@@ -225,7 +225,7 @@ class TranslationsImportExportTask extends BuildTask
     protected function normalizeRow($row)
     {
         foreach ($row as $idx => $value) {
-            if ($idx == 0) {
+            if ($idx == 0 || $value === null) {
                 continue;
             }
             if (strpos($value, '{"') === 0) {
