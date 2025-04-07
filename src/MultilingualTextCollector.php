@@ -20,6 +20,8 @@ use SilverStripe\Core\Path;
  */
 class MultilingualTextCollector extends i18nTextCollector
 {
+    use BuildTaskTools;
+    
     /**
      * @var boolean
      */
