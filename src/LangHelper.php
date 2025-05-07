@@ -294,10 +294,15 @@ class LangHelper
             $locale = $locale->Locale;
         }
         $state = FluentState::singleton();
-        return $state->withState(function ($state) use ($locale, $cb) {
+        // @link https://github.com/tractorcow-farm/silverstripe-fluent/issues/327
+        $currentLocale = i18n::get_locale();
+        i18n::set_locale(FluentState::singleton()->getLocale());
+        $result = $state->withState(function ($state) use ($locale, $cb) {
             $state->setLocale($locale);
             return $cb();
         });
+        i18n::set_locale($currentLocale);
+        return $result;
     }
 
     /**
@@ -318,5 +323,39 @@ class LangHelper
             $results[] = self::withLocale($locale, $cb);
         }
         return $results;
+    }
+
+    /**
+     * Convert a locale title to a simple lang name
+     * @param string $locale
+     * @return string
+     */
+    public static function localeToLang(string $locale): string
+    {
+        // Remove parenthesis
+        $cleanedLocale = preg_replace('/\s*\(.*?\)/', '', $locale);
+        // First letter should be uppercased for consistency
+        $cleanedLocale = mb_ucfirst(trim($cleanedLocale));
+        return $cleanedLocale;
+    }
+
+    /**
+     * Get all fluent locales
+     * @return array
+     */
+    public static function getApplicationLanguages(): array
+    {
+        if (!self::usesFluent()) {
+            $title = i18n::getData()->languageName(i18n::get_locale());
+            return [
+                i18n::get_locale() => self::localeToLang($title)
+            ];
+        }
+        $locales = Locale::get();
+        $arr = [];
+        foreach ($locales as $loc) {
+            $arr[$loc->Locale] = self::localeToLang($loc->getTitle());
+        }
+        return $arr;
     }
 }
