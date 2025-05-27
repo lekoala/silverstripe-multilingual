@@ -230,6 +230,10 @@ class LangHelper
      */
     public static function get_locale_from_lang($lang)
     {
+        // Use cache
+        if (isset(self::$locale_cache[$lang])) {
+            return self::$locale_cache[$lang];
+        }
         // Use fluent data
         if (class_exists(Locale::class)) {
             if (empty(self::$locale_cache)) {
@@ -238,13 +242,14 @@ class LangHelper
                     self::$locale_cache[self::get_lang($locale->Locale)] = $locale->Locale;
                 }
             }
-            if (isset(self::$locale_cache[$lang])) {
-                return self::$locale_cache[$lang];
-            }
         }
-        // Guess
-        $localesData = i18n::getData();
-        return $localesData->localeFromLang($lang);
+        // Use i18n data
+        if (!isset(self::$locale_cache[$lang])) {
+            $localesData = i18n::getData();
+            self::$locale_cache[$lang] = $localesData->localeFromLang($lang);
+        }
+        // Return cached value
+        return self::$locale_cache[$lang];
     }
 
     /**
