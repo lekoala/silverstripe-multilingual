@@ -7,6 +7,7 @@ use LeKoala\Multilingual\LangHelper;
 use LeKoala\Multilingual\GoogleTranslateHelper;
 use LeKoala\Multilingual\MultilingualTextCollector;
 use LeKoala\Multilingual\TranslationsImportExportTask;
+use SilverStripe\i18n\i18n;
 
 class MultilingualTest extends SapphireTest
 {
@@ -37,7 +38,7 @@ class MultilingualTest extends SapphireTest
 
         ob_start();
         $task->debug = true;
-        $task->exportTranslations('silverstripe/framework', false, ['en','fr']);
+        $task->exportTranslations('silverstripe/framework', false, ['en', 'fr']);
         $res = ob_get_contents();
         ob_end_clean();
 
@@ -53,5 +54,15 @@ class MultilingualTest extends SapphireTest
 
         $translation = GoogleTranslateHelper::proxy_translate($sourceText, 'fr', 'en');
         $this->assertEquals('Bonjour', $translation);
+    }
+
+    public function testWithLocale()
+    {
+        LangHelper::withLocale('fr_FR', function () {
+            self::assertEquals("fr_FR", i18n::get_locale());
+        });
+        LangHelper::withLocale('en_US', function () {
+            self::assertEquals("en_US", i18n::get_locale());
+        });
     }
 }

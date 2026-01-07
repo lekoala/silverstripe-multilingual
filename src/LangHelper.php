@@ -291,9 +291,14 @@ class LangHelper
      */
     public static function withLocale($locale, $cb)
     {
+        $baseLocale = i18n::get_locale();
         if (!self::usesFluent() || !$locale) {
-            $cb();
-            return;
+            if ($locale) {
+                i18n::set_locale($locale);
+            }
+            $result = $cb();
+            i18n::set_locale($baseLocale);
+            return $result;
         }
         if (!is_string($locale)) {
             $locale = $locale->Locale;
@@ -308,6 +313,7 @@ class LangHelper
                 return $cb();
             }
         );
+        i18n::set_locale($baseLocale);
         return $result;
     }
 
