@@ -283,7 +283,7 @@ class LangHelper
     }
 
     /**
-     * Execute the callback in given subsite
+     * Execute the callback in given locale
      *
      * @param string $locale
      * @param callable $cb
@@ -299,14 +299,15 @@ class LangHelper
             $locale = $locale->Locale;
         }
         $state = FluentState::singleton();
-        // @link https://github.com/tractorcow-farm/silverstripe-fluent/issues/327
-        $currentLocale = i18n::get_locale();
-        i18n::set_locale(FluentState::singleton()->getLocale());
-        $result = $state->withState(function ($state) use ($locale, $cb) {
-            $state->setLocale($locale);
-            return $cb();
-        });
-        i18n::set_locale($currentLocale);
+        // Execute callback while setting fluent/i18n state
+        // withState will restore previous i18n locale
+        $result = $state->withState(
+            function (FluentState $state) use ($locale, $cb) {
+                $state->setLocale($locale);
+                i18n::set_locale($locale);
+                return $cb();
+            }
+        );
         return $result;
     }
 
