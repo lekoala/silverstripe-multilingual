@@ -62,9 +62,10 @@ class OllamaTranslator
      * @param string $string
      * @param string|null $refString
      * @param string|null $refLang
+     * @param string|null $context
      * @return string
      */
-    protected function buildPrompt(string $from, string $to, string $string, ?string $refString = null, ?string $refLang = null): string
+    protected function buildPrompt(string $from, string $to, string $string, ?string $refString = null, ?string $refLang = null, ?string $context = null): string
     {
         $fromCode = $this->expandLang($from, true);
         $fromName = $this->expandLang($from);
@@ -72,6 +73,11 @@ class OllamaTranslator
         $toName = $this->expandLang($to);
 
         $prompt = "You are a professional $fromName ($fromCode) to $toName ($toCode) translator. Your goal is to accurately convey the meaning and nuances of the original $fromName text while adhering to $toName grammar, vocabulary, and cultural sensitivities.";
+        if ($context) {
+            // Limit context length to avoid token limit issues
+            $context = mb_strimwidth($context, 0, 200, '...');
+            $prompt .= "\nContext: $context";
+        }
         if ($refString && $refLang) {
             $refLangName = $this->expandLang($refLang);
             $refLangCode = $this->expandLang($refLang, true);
@@ -89,20 +95,21 @@ class OllamaTranslator
      * @param string $from Source language code
      * @param string $refString The reference translation string
      * @param string $refLang The reference language code
+     * @param string|null $context Context for the translation
      * @return string
      */
-    public function translateWithReference(?string $string, string $to, string $from, string $refString, string $refLang)
+    public function translateWithReference(?string $string, string $to, string $from, string $refString, string $refLang, ?string $context = null)
     {
         $string = $string ?? '';
-        $prompt = $this->buildPrompt($from, $to, $string, $refString, $refLang);
+        $prompt = $this->buildPrompt($from, $to, $string, $refString, $refLang, $context);
 
         return $this->processResponse($this->generate($prompt), $string);
     }
 
-    public function translate(?string $string, string $to, string $from)
+    public function translate(?string $string, string $to, string $from, ?string $context = null)
     {
         $string = $string ?? '';
-        $prompt = $this->buildPrompt($from, $to, $string);
+        $prompt = $this->buildPrompt($from, $to, $string, null, null, $context);
 
         return $this->processResponse($this->generate($prompt), $string);
     }

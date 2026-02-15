@@ -72,3 +72,27 @@ test("Variable Preservation with Reference", function () use ($translator) {
         echo "FAIL: {item} lost\n";
     }
 });
+
+test("Context Translation", function () use ($translator) {
+    $text = 'Spring';
+    $from = 'en';
+    $to = 'fr';
+
+    echo "Original: $text\n";
+
+    $context1 = "Seasons of the year";
+    echo "Context 1: $context1\n";
+    $t1 = $translator->translate($text, $to, $from, $context1);
+    echo "Translation 1: $t1\n";
+
+    $context2 = "Mechanical parts";
+    echo "Context 2: $context2\n";
+    $t2 = $translator->translate($text, $to, $from, $context2);
+    echo "Translation 2: $t2\n";
+
+    if ($t1 !== $t2) {
+        echo "PASS: Translations differ based on context\n";
+    } else {
+        echo "FAIL: Translations are identical despite context\n";
+    }
+});

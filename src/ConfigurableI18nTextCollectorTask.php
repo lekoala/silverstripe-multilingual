@@ -57,6 +57,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $this->addOption("auto_translate", "Translate strings using helper", false);
         $this->addOption("auto_translate_lang", "Base language for translation", LangHelper::get_lang());
         $this->addOption("auto_translate_mode", "Translate new strings or all", '');
+        $this->addOption("ref_lang", "Reference language for retranslation (e.g. en)", null);
         $this->addOption("clear_unused", "Remove keys that are not used anymore", false);
         $this->addOption("debug", "Show debug messages and prevent write", false);
         $this->addOption("module", "Module", 'default', $modules);
@@ -71,6 +72,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $auto_translate = $options['auto_translate'];
         $auto_translate_lang = $options['auto_translate_lang'];
         $auto_translate_mode = $options['auto_translate_mode'];
+        $ref_lang = $options['ref_lang'];
 
         $themes = Director::baseFolder() . '/themes';
         $folders = glob($themes . '/*');
@@ -88,7 +90,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
                 $collector->setMergeWithExisting($merge);
                 $collector->setClearUnused($clearUnused);
                 $collector->setDebug($debug);
-                $collector->setAutoTranslate($auto_translate, $auto_translate_lang, $auto_translate_mode);
+                $collector->setAutoTranslate($auto_translate, $auto_translate_lang, $auto_translate_mode, $ref_lang);
                 $result = $collector->run([$module], $merge);
                 if ($result) {
                     foreach ($result as $module => $entities) {

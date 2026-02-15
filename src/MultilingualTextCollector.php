@@ -61,6 +61,11 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * @var string
      */
+    protected $autoTranslateRefLang = null;
+
+    /**
+     * @var string
+     */
     protected $autoTranslateMode = 'all';
 
     /**
@@ -100,6 +105,10 @@ class MultilingualTextCollector extends i18nTextCollector
         $this->reader = Injector::inst()->create(Reader::class);
         $this->writer = Injector::inst()->create(Writer::class);
     }
+
+// ... existing code ...
+
+
 
     /**
      * This is the main method to build the master string tables with the
@@ -294,19 +303,57 @@ class MultilingualTextCollector extends i18nTextCollector
                 $targetLangName = $this->defaultLocale;
                 $translator = $this->getTranslator();
 
+                $refMessages = [];
+                if ($this->autoTranslateRefLang) {
+                     $refMasterFile = Path::join($modules[$module]->getPath(), 'lang', $this->autoTranslateRefLang . '.yml');
+                    if (is_file($refMasterFile)) {
+                        $refMessages = $this->getReader()->read($this->autoTranslateRefLang, $refMasterFile);
+                    }
+                }
+
                 foreach ($toTranslate as $newMessageKey => $newMessageVal) {
                     $i++;
                     if ($i > $max) {
                         continue;
                     }
                     try {
+                        $context = null;
+                        if (is_array($newMessageVal) && isset($newMessageVal['default'])) {
+                            $context = $newMessageVal['context'] ?? null;
+                            // For translation purposes, we target the default value
+                            // but we keep the structure in the result
+                            // Actually, let's just translate the value?
+                            // If we update $newMessageVal to string, we lose context in the output loop
+                            // But usually translate returns string.
+                            // If the output expects array, we should return array.
+                        }
+
+                        $refString = $refMessages[$newMessageKey] ?? null;
+                        if (is_array($refString)) {
+                             $refString = $refString['default'] ?? null;
+                        }
+
                         if (is_array($newMessageVal)) {
                             $result = [];
-                            foreach ($newMessageVal as $newessageValKey => $newMessageValItem) {
-                                $result[$newessageValKey] = $translator->translate($newMessageValItem, $targetLangName, $baseLangName);
+                            foreach ($newMessageVal as $newMessageValKey => $newMessageValItem) {
+                                // Skip context key if present in array
+                                if ($newMessageValKey === 'context') {
+                                    $result[$newMessageValKey] = $newMessageValItem;
+                                    continue;
+                                }
+                                
+                                if ($refString) {
+                                    $result[$newMessageValKey] = $translator->translateWithReference($newMessageValItem, $targetLangName, $baseLangName, $refString, $this->autoTranslateRefLang, $context);
+                                } else {
+                                    $result[$newMessageValKey] = $translator->translate($newMessageValItem, $targetLangName, $baseLangName, $context);
+                                }
                             }
                         } else {
-                            $result = $translator->translate($newMessageVal, $targetLangName, $baseLangName);
+                            if ($refString) {
+                                $result = $translator->translateWithReference($newMessageVal, $targetLangName, $baseLangName, $refString, $this->autoTranslateRefLang, $context);
+                            } else {
+                                $result = $translator->translate($newMessageVal, $targetLangName, $baseLangName, $context);
+                            }
                         }
                         $messages[$newMessageKey] = $result;
                         if ($this->autoTranslateMode == 'all') {
@@ -544,13 +591,17 @@ class MultilingualTextCollector extends i18nTextCollector
      * Set the value of autoTranslate
      *
      * @param boolean $autoTranslate
+     * @param string|null $lang
+     * @param string $mode
+     * @param string|null $refLang
      * @return self
      */
-    public function setAutoTranslate($autoTranslate, $lang = null, $mode = 'new')
+    public function setAutoTranslate($autoTranslate, $lang = null, $mode = 'new', $refLang = null)
     {
         $this->autoTranslate = $autoTranslate;
         $this->autoTranslateLang = $lang;
         $this->autoTranslateMode = $mode;
+        $this->autoTranslateRefLang = $refLang;
         return $this;
     }
 }

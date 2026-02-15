@@ -65,6 +65,10 @@ For example, to export translations and translate empty strings using `fr` as a 
 sake dev/tasks/TranslationsImportExportTask module=yourmodule export=1 export_auto_translate=1 ref_lang=fr
 ```
 
+### Context Support
+
+You can also provide context to the translator to resolve ambiguities. This is handled automatically by the `MultilingualTextCollector` if the translation entity contains a `context` key (e.g. from `<%t String context="My Context" %>`).
+
 ## Todo
 
 - Make BuildTaskTools into a specific module
