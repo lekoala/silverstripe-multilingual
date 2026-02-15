@@ -45,6 +45,26 @@ If you use lekoala/silverstripe-excel-import-export, this file can be exported i
 
 This is available from a convenient interface.
 
+## Ollama Integration
+
+This module uses `OllamaTranslator` to leverage local LLMs for translation.
+
+By default, it uses the `translategemma` model, which you need to pull:
+
+```bash
+ollama pull translategemma
+```
+
+### Reference Translation
+
+You can improve translation quality by providing a reference translation. This is supported in the `TranslationsImportExportTask` via the `--ref_lang` option.
+
+For example, to export translations and translate empty strings using `fr` as a reference for `nl`:
+
+```bash
+sake dev/tasks/TranslationsImportExportTask module=yourmodule export=1 export_auto_translate=1 ref_lang=fr
+```
+
 ## Todo
 
 - Make BuildTaskTools into a specific module
@@ -55,4 +75,4 @@ Tested with ^5
 
 ## Maintainer
 
-LeKoala - thomas@lekoala.be
+LeKoala - <thomas@lekoala.be>

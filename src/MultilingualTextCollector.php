@@ -58,7 +58,36 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * @var string
      */
+    /**
+     * @var string
+     */
     protected $autoTranslateMode = 'all';
+
+    /**
+     * @var OllamaTranslator
+     */
+    protected $translator;
+
+    /**
+     * @return OllamaTranslator
+     */
+    public function getTranslator()
+    {
+        if (!$this->translator) {
+            $this->translator = new OllamaTranslator();
+        }
+        return $this->translator;
+    }
+
+    /**
+     * @param OllamaTranslator $translator
+     * @return self
+     */
+    public function setTranslator(OllamaTranslator $translator)
+    {
+        $this->translator = $translator;
+        return $this;
+    }
 
     /**
      * @param ?string $locale
@@ -263,7 +292,7 @@ class MultilingualTextCollector extends i18nTextCollector
             if ($this->autoTranslate) {
                 $baseLangName = $this->autoTranslateLang;
                 $targetLangName = $this->defaultLocale;
-                $translator = new OllamaTowerInstruct();
+                $translator = $this->getTranslator();
 
                 foreach ($toTranslate as $newMessageKey => $newMessageVal) {
                     $i++;

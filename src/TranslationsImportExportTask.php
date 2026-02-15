@@ -51,6 +51,7 @@ class TranslationsImportExportTask extends BuildTask
         $this->addOption("export", "Export translations", false);
         $this->addOption("export_untranslated", "Export untranslated", false);
         $this->addOption("export_auto_translate", "Translate exported strings", false);
+        $this->addOption("ref_lang", "Reference language for translation (e.g. en)", null);
         $this->addOption("export_only", "Export only these lang (comma separated)");
         $this->addOption("debug", "Show debug output and do not write files", false);
         $this->addOption("excel", "Use excel if possible (require excel-import-export module)", true);
@@ -64,6 +65,7 @@ class TranslationsImportExportTask extends BuildTask
         $export_only = $options['export_only'];
         $export_untranslated = $options['export_untranslated'];
         $export_auto_translate = $options['export_auto_translate'];
+        $ref_lang = $options['ref_lang'];
 
         $this->debug = $options['debug'];
 
@@ -76,7 +78,7 @@ class TranslationsImportExportTask extends BuildTask
                 if ($export_only) {
                     $onlyLang = explode(",", $export_only);
                 }
-                $this->exportTranslations($module, $excel, $onlyLang, $export_untranslated, $export_auto_translate);
+                $this->exportTranslations($module, $excel, $onlyLang, $export_untranslated, $export_auto_translate, $ref_lang);
             }
         } else {
             $this->message("Please select a module");
@@ -246,7 +248,7 @@ class TranslationsImportExportTask extends BuildTask
      * @param bool $translate
      * @return void
      */
-    public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false, $translate = false)
+    public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false, $translate = false, $refLang = null)
     {
         $fullLangPath = $this->getLangPath($module);
 
@@ -281,6 +283,22 @@ class TranslationsImportExportTask extends BuildTask
             $masterMessages = $reader->read($defaultLang, $defaultFile);
         }
 
+        $refMessages = [];
+        if ($refLang) {
+            $refFile = null;
+            foreach ($translationFiles as $refTranslationFile) {
+                $checkRefLang = pathinfo($refTranslationFile, PATHINFO_FILENAME);
+                if ($checkRefLang == $refLang) {
+                    $refFile = $refTranslationFile;
+                    break;
+                }
+            }
+            if ($refFile) {
+                $reader = new YamlReader;
+                $refMessages = $reader->read($refLang, $refFile);
+            }
+        }
+
         $i = 0;
         foreach ($translationFiles as $translationFile) {
             $lang = pathinfo($translationFile, PATHINFO_FILENAME);
@@ -290,7 +308,7 @@ class TranslationsImportExportTask extends BuildTask
             $reader = new YamlReader;
             $messages = $reader->read($lang, $translationFile);
 
-            $translator = new OllamaTowerInstruct();
+            $translator = new OllamaTranslator();
 
             foreach ($messages as $entityKey => $v) {
                 if ($untranslated) {
@@ -309,7 +327,11 @@ class TranslationsImportExportTask extends BuildTask
 
                 // Attempt auto translation / 200
                 if ($translate && count($allMessages) < 200) {
-                    $v = $translator->translate($v, $lang, $defaultLang);
+                    if ($refLang && isset($refMessages[$entityKey])) {
+                        $v = $translator->translateWithReference($v, $lang, $defaultLang, $refMessages[$entityKey], $refLang);
+                    } else {
+                        $v = $translator->translate($v, $lang, $defaultLang);
+                    }
                 }
 
                 $allMessages[$entityKey][$i] = $v;
