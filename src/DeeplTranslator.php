@@ -6,7 +6,11 @@ use DeepL\DeepLClient;
 use DeepL\TranslatorOptions;
 use Exception;
 use SilverStripe\Core\Environment;
+use SilverStripe\Control\Director;
 
+/**
+ * @link https://developers.deepl.com/api-reference/multilingual-glossaries
+ */
 class DeeplTranslator implements TranslatorInterface
 {
     use TranslatorUtils;
@@ -52,6 +56,31 @@ class DeeplTranslator implements TranslatorInterface
         $this->client = new DeepLClient($apiKey, $options);
     }
 
+    protected function getGlossaryMapPath(): string
+    {
+        return Director::baseFolder() . '/app/lang/glossaries/map.json';
+    }
+
+    /**
+     * Get the glossary ID for translation requests.
+     * V3 API uses one multilingual glossary — DeepL resolves the correct dictionary.
+     *
+     * @return string|null
+     */
+    protected function getGlossaryId(): ?string
+    {
+        static $glossaryId = false;
+        if ($glossaryId === false) {
+            $glossaryId = null;
+            $path = $this->getGlossaryMapPath();
+            if (file_exists($path)) {
+                $map = json_decode(file_get_contents($path), true);
+                $glossaryId = $map['glossary_id'] ?? null;
+            }
+        }
+        return $glossaryId;
+    }
+
     public function translate(?string $string, string $to, string $from, ?string $context = null): string
     {
         if (!$string) {
@@ -61,6 +90,12 @@ class DeeplTranslator implements TranslatorInterface
         if ($context) {
             $options['context'] = $context;
         }
+
+        $glossaryId = $this->getGlossaryId();
+        if ($glossaryId) {
+            $options['glossary_id'] = $glossaryId;
+        }
+
         $result = $this->client->translateText($string, $from, $to, $options);
         $translation = $result->text;
 
@@ -90,6 +125,11 @@ class DeeplTranslator implements TranslatorInterface
             $options = [];
             if ($ctx) {
                 $options['context'] = $ctx;
+            }
+
+            $glossaryId = $this->getGlossaryId();
+            if ($glossaryId) {
+                $options['glossary_id'] = $glossaryId;
             }
 
             try {

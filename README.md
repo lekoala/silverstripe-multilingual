@@ -45,13 +45,39 @@ If you use `lekoala/silverstripe-excel-import-export`, this file can be exported
 
 This is available from a convenient interface.
 
-## Configuration
+## Glossary Support
 
-You can configure the default translator using SilverStripe's dependency injection system in your `app/_config/config.yml`:
+This module provides a mechanism to manage translation glossaries, ensuring consistent translation of specific terms. For a detailed technical overview of how this integrates with the DeepL API, see [Glossary Architecture](docs/glossary.md).
 
-## Configuration
+### Usage
 
-You can configure the default translator using SilverStripe's dependency injection system in your `app/_config/config.yml`:
+1. **Generate glossary candidates**:
+
+    ```bash
+    php vendor/bin/sake dev/tasks/GlossaryTask action=generate module=app
+    ```
+
+    This scans your YML files for single-word translations (e.g., "Word" -> "Mot") and creates CSV files in `app/lang/glossaries/`. These files can be reviewed and edited manually.
+
+2. **Sync with DeepL (Optional)**:
+
+    ```bash
+    php vendor/bin/sake dev/tasks/GlossaryTask action=sync module=app
+    ```
+
+    This uploads the CSV files to DeepL as a single multilingual glossary. The resulting glossary ID is stored in `app/lang/glossaries/map.json`.
+
+3. **List remote glossaries**:
+
+    ```bash
+    php vendor/bin/sake dev/tasks/GlossaryTask action=list
+    ```
+
+When using the `DeeplTranslator`, it will automatically detect and apply the glossary if a valid `map.json` file is found in the module's `lang/glossaries` directory.
+
+## Supported translators
+
+We support a few drivers out of the box. You can configure the default translator using SilverStripe's dependency injection system in your `app/_config/config.yml`:
 
 ### For DeepL
 

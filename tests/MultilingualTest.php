@@ -105,11 +105,18 @@ class MultilingualTest extends SapphireTest
     {
         // Mock the translator
         $translator = $this->getMockBuilder(\LeKoala\Multilingual\OllamaTranslator::class)
-            ->setMethods(['translate'])
+            ->setMethods(['translate', 'translateBatch'])
             ->getMock();
-        $translator->expects($this->once())
-            ->method('translate')
+        $translator->method('translate')
             ->will($this->returnValue("Translated"));
+        $translator->method('translateBatch')
+            ->will($this->returnCallback(function ($batch) {
+                $results = [];
+                foreach ($batch as $entry) {
+                    $results[$entry['key']] = "Translated";
+                }
+                return $results;
+            }));
 
         // Mock the collector to expose protected methods and control data
         $collector = $this->getMockBuilder(MultilingualTextCollector::class)

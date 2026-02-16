@@ -279,6 +279,7 @@ class TranslationsImportExportTask extends BuildTask
         }
 
 
+        $i = 1;
         foreach ($translationFiles as $translationFile) {
             $lang = pathinfo($translationFile, PATHINFO_FILENAME);
             if (!empty($onlyLang) && !in_array($lang, $onlyLang)) {
