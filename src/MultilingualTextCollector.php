@@ -14,6 +14,7 @@ use SilverStripe\Core\Manifest\ModuleLoader;
 use SilverStripe\i18n\TextCollection\Parser;
 use SilverStripe\i18n\TextCollection\i18nTextCollector;
 use SilverStripe\Core\Path;
+use SilverStripe\Core\Environment;
 
 /**
  * Improved text collector
@@ -66,7 +67,12 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $autoTranslateMode = 'all';
 
     /**
-     * @var OllamaTranslator|null
+     * @var string|null
+     */
+    protected $translatorDriver = null;
+
+    /**
+     * @var TranslatorInterface|null
      */
     protected $translator;
 
@@ -76,21 +82,24 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $translatorModel = null;
 
     /**
-     * @return OllamaTranslator
+     * @return TranslatorInterface
      */
-    public function getTranslator()
+    public function getTranslator(): TranslatorInterface
     {
         if (!$this->translator) {
-            $this->translator = new OllamaTranslator($this->translatorModel);
+            $this->translator = TranslatorFactory::create(
+                $this->translatorDriver,
+                $this->translatorModel
+            );
         }
         return $this->translator;
     }
 
     /**
-     * @param OllamaTranslator $translator
+     * @param TranslatorInterface $translator
      * @return self
      */
-    public function setTranslator(OllamaTranslator $translator)
+    public function setTranslator(TranslatorInterface $translator)
     {
         $this->translator = $translator;
         return $this;
@@ -776,6 +785,25 @@ class MultilingualTextCollector extends i18nTextCollector
     {
         $this->translatorModel = $model;
         // Reset cached translator so new model takes effect
+        $this->translator = null;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTranslatorDriver(): string
+    {
+        return $this->translatorDriver;
+    }
+
+    /**
+     * @param string $driver
+     * @return self
+     */
+    public function setTranslatorDriver(string $driver)
+    {
+        $this->translatorDriver = $driver;
         $this->translator = null;
         return $this;
     }

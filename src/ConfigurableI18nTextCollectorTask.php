@@ -6,6 +6,7 @@ use SilverStripe\i18n\i18n;
 use SilverStripe\Dev\BuildTask;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Middleware\HTTPCacheControlMiddleware;
+use LeKoala\Multilingual\TranslatorFactory;
 
 /**
  * A better task for collecting text
@@ -58,7 +59,9 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $this->addOption("source_lang", "Source language for translation (e.g. en)", LangHelper::get_lang());
         $this->addOption("auto_translate_mode", "Translate new strings or all", '');
         $this->addOption("review_translations", "Review and correct existing translations", false);
-        $this->addOption("model", "Ollama model for translation", OllamaTranslator::BASE_MODEL);
+        $defaultDriver = TranslatorFactory::getDefaultDriver();
+
+        $this->addOption("driver", "Translator driver (ollama or deepl) [default: $defaultDriver]", null);
         $this->addOption("clear_unused", "Remove keys that are not used anymore", false);
         $this->addOption("debug", "Show debug messages and prevent write", false);
         $this->addOption("module", "Module", 'default', $modules);
@@ -74,7 +77,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $source_lang = $options['source_lang'];
         $auto_translate_mode = $options['auto_translate_mode'];
         $review_translations = $options['review_translations'];
-        $model = $options['model'];
+        $driver = $options['driver'];
 
         $themes = Director::baseFolder() . '/themes';
         $folders = glob($themes . '/*');
@@ -94,9 +97,10 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
                 $collector->setDebug($debug);
                 $collector->setAutoTranslate($auto_translate, $source_lang, $auto_translate_mode);
                 $collector->setReviewTranslations($review_translations);
-                if ($model) {
-                    $collector->setTranslatorModel($model);
+                if ($driver) {
+                    $collector->setTranslatorDriver($driver);
                 }
+
                 $result = $collector->run([$moduleName], $merge);
                 if ($result) {
                     foreach ($result as $resultModule => $entities) {

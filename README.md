@@ -45,6 +45,56 @@ If you use `lekoala/silverstripe-excel-import-export`, this file can be exported
 
 This is available from a convenient interface.
 
+## Configuration
+
+You can configure the default translator using SilverStripe's dependency injection system in your `app/_config/config.yml`:
+
+## Configuration
+
+You can configure the default translator using SilverStripe's dependency injection system in your `app/_config/config.yml`:
+
+### For DeepL
+
+```yaml
+SilverStripe\Core\Injector\Injector:
+  LeKoala\Multilingual\TranslatorInterface:
+    class: LeKoala\Multilingual\DeeplTranslator
+    constructor:
+      apiKey: 'your-api-key'
+```
+
+### For Ollama
+
+```yaml
+SilverStripe\Core\Injector\Injector:
+  LeKoala\Multilingual\TranslatorInterface:
+    class: LeKoala\Multilingual\OllamaTranslator
+    constructor:
+      model: 'mistral'
+```
+
+Tasks will use this configuration unless you explicitly override options (like `driver`, `model`, or `key`) via CLI.
+
+## DeepL Integration
+
+You can use DeepL as an alternative to Ollama. First, install the SDK:
+
+```bash
+composer require deeplcom/deepl-php
+```
+
+Then configure the tasks to use the `deepl` driver and provide your API key.
+
+```bash
+sake dev/tasks/TranslationsImportExportTask module=yourmodule export=1 export_auto_translate=1 source_lang=en driver=deepl key=your-api-key
+```
+
+DeepL support includes:
+
+- **Batch Translation**: Grouping multiple strings to reduce API calls (grouped by context).
+- **Context Support**: Passing context to DeepL to improve translation quality.
+- **Variable Preservation**: Automatic restoration of variables (e.g. `{name}`) if the API messes them up.
+
 ## Ollama Integration
 
 This module uses `OllamaTranslator` to leverage local LLMs for translation.

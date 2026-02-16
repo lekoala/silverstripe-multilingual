@@ -13,7 +13,6 @@ use SilverStripe\Core\Manifest\ModuleLoader;
 
 /**
  * Makes your life easier with build tasks
- * TODO: make this into a separate module
  */
 trait BuildTaskTools
 {

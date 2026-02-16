@@ -4,3 +4,6 @@ Name: multilingual
 TractorCow\Fluent\Middleware\DetectLocaleMiddleware:
   # Call LangHelper:persistLocaleIfCookiesAreAllowed instead
   persist_cookie: false
+SilverStripe\Core\Injector\Injector:
+  LeKoala\Multilingual\TranslatorInterface:
+    class: LeKoala\Multilingual\OllamaTranslator
