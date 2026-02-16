@@ -114,6 +114,200 @@ class OllamaTranslator
         return $this->processResponse($this->generate($prompt), $string);
     }
 
+    /**
+     * Translate multiple strings in a single LLM call
+     *
+     * @param array<int,array{key:string,value:string,context:?string}> $entries
+     * @param string $to Target language code
+     * @param string $from Source language code
+     * @return array<string,string> key => translated value
+     */
+    public function translateBatch(array $entries, string $to, string $from): array
+    {
+        if (empty($entries)) {
+            return [];
+        }
+
+        $fromName = $this->expandLang($from);
+        $fromCode = $this->expandLang($from, true);
+        $toName = $this->expandLang($to);
+        $toCode = $this->expandLang($to, true);
+
+        $prompt = "You are a professional $fromName ($fromCode) to $toName ($toCode) translator.\n";
+        $prompt .= "Translate each numbered line below. Return ONLY the translations, one per line, prefixed with the same number. ";
+        $prompt .= "Do not add any explanations.\n\n";
+
+        $keys = [];
+        $originals = [];
+        $i = 1;
+        foreach ($entries as $entry) {
+            $keys[$i] = $entry['key'];
+            $originals[$i] = $entry['value'];
+            $line = "$i. {$entry['value']}";
+            if (!empty($entry['context'])) {
+                $ctx = mb_strimwidth($entry['context'], 0, 100, '...');
+                $line .= " [context: $ctx]";
+            }
+            $prompt .= "$line\n";
+            $i++;
+        }
+
+        $result = $this->generate($prompt);
+        $response = trim($result['response'] ?? '');
+        $lines = preg_split('/\r?\n/', $response);
+
+        $translations = [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            // Match "1. Translation" or "1: Translation"
+            if (preg_match('/^(\d+)[.\:)]\s*(.+)$/', $line, $m)) {
+                $num = (int)$m[1];
+                $translated = trim($m[2]);
+                if (isset($keys[$num])) {
+                    $original = $originals[$num];
+                    $translated = $this->processResponse(['response' => $translated], $original);
+                    $translations[$keys[$num]] = $translated;
+                }
+            }
+        }
+
+        return $translations;
+    }
+
+    /**
+     * Review multiple translations in a single LLM call
+     *
+     * @param array<int,array{key:string,source:string,translation:string,context:?string}> $entries
+     * @param string $to Target language code
+     * @param string $from Source language code
+     * @return array<string,array{valid:bool,correction:?string}> key => result
+     */
+    public function reviewBatch(array $entries, string $to, string $from): array
+    {
+        if (empty($entries)) {
+            return [];
+        }
+
+        $fromName = $this->expandLang($from);
+        $toName = $this->expandLang($to);
+
+        $prompt = "You are a professional translation reviewer.\n";
+        $prompt .= "For each numbered entry, respond with the same number followed by VALID or INVALID: correction.\n\n";
+        $prompt .= "Example responses:\n";
+        $prompt .= "1. VALID\n";
+        $prompt .= "2. INVALID: Au revoir\n\n";
+        $prompt .= "Entries to review:\n";
+
+        $keys = [];
+        $i = 1;
+        foreach ($entries as $entry) {
+            $keys[$i] = $entry['key'];
+            $line = "$i. Source ($fromName): {$entry['source']} | Translation ($toName): {$entry['translation']}";
+            if (!empty($entry['context'])) {
+                $ctx = mb_strimwidth($entry['context'], 0, 100, '...');
+                $line .= " [context: $ctx]";
+            }
+            $prompt .= "$line\n";
+            $i++;
+        }
+
+        $result = $this->generate($prompt);
+        $response = trim($result['response'] ?? '');
+        $lines = preg_split('/\r?\n/', $response);
+
+        $results = [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (preg_match('/^(\d+)[.\:)]\s*(.+)$/', $line, $m)) {
+                $num = (int)$m[1];
+                $verdict = trim($m[2]);
+                if (isset($keys[$num])) {
+                    if (str_starts_with(strtoupper($verdict), 'VALID')) {
+                        $results[$keys[$num]] = ['valid' => true, 'correction' => null];
+                    } else {
+                        $correction = $verdict;
+                        if (str_starts_with(strtoupper($verdict), 'INVALID:')) {
+                            $correction = trim(substr($verdict, 8));
+                        }
+                        $results[$keys[$num]] = ['valid' => false, 'correction' => $correction];
+                    }
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Review a translation
+     *
+     * @param string $string Source string
+     * @param string $translation Target string
+     * @param string $to Target language
+     * @param string $from Source language
+     * @param string|null $context Context
+     * @return array{valid:bool,correction:?string,comment:?string}
+     */
+    public function review(string $string, string $translation, string $to, string $from, ?string $context = null): array
+    {
+        $fromName = $this->expandLang($from);
+        $toName = $this->expandLang($to);
+
+        $prompt = "You are a professional translation reviewer.\n";
+        $prompt .= "Task: Check if the translation is correct.\n\n";
+
+        $prompt .= "Example 1:\n";
+        $prompt .= "Source (English): Hello\n";
+        $prompt .= "Translation (French): Bonjour\n";
+        $prompt .= "Response: VALID\n\n";
+
+        $prompt .= "Example 2:\n";
+        $prompt .= "Source (English): Goodbye\n";
+        $prompt .= "Translation (French): Bonjour\n";
+        $prompt .= "Response: INVALID: Au revoir\n\n";
+
+        $prompt .= "Example 3:\n";
+        $prompt .= "Source (English): Title\n";
+        $prompt .= "Translation (French): Nom\n";
+        $prompt .= "Response: INVALID: Titre\n\n";
+
+        $prompt .= "Now review the following:\n";
+        if ($context) {
+            $prompt .= "Context: $context\n";
+        }
+        $prompt .= "Source ($fromName): $string\n";
+        $prompt .= "Translation ($toName): $translation\n";
+        $prompt .= "Response:";
+
+        $response = $this->generate($prompt)['response'];
+        $response = trim($response);
+
+        $valid = str_starts_with(strtoupper($response), 'VALID');
+        $correction = null;
+        $comment = null;
+
+        if ($valid) {
+             $comment = trim(substr($response, 5));
+            if (empty($comment)) {
+                $comment = null;
+            }
+        } else {
+             // Try to extract correction
+            if (str_starts_with(strtoupper($response), 'INVALID:')) {
+                $correction = trim(substr($response, 8));
+            } else {
+                // Fallback if model didn't follow instruction perfectly
+                $correction = $response;
+            }
+        }
+
+        return [
+            'valid' => $valid,
+            'correction' => $correction,
+            'comment' => $comment
+        ];
+    }
+
     protected function processResponse(array $result, string $originalString): string
     {
         $response = $result['response'] ?? '';
@@ -139,7 +333,64 @@ class OllamaTranslator
         $response = str_replace('{ ', '{', $response);
         $response = str_replace(' }', '}', $response);
 
+        // Verify variables
+        $response = $this->fixVariables($originalString, $response);
+
         return $response;
+    }
+
+    /**
+     * Ensure that variables in the original string are present in the translation
+     * and restore them if they are translated or missing
+     *
+     * @param string $originalString
+     * @param string $translation
+     * @return string
+     */
+    protected function fixVariables(string $originalString, string $translation): string
+    {
+        // Extract variables from original string like {name}
+        preg_match_all('/\{[a-zA-Z0-9_]+\}/', $originalString, $matches);
+        $vars = $matches[0] ?? [];
+
+        if (empty($vars)) {
+            return $translation;
+        }
+
+        // Extract variables from translation
+        preg_match_all('/\{[a-zA-Z0-9_]+\}/', $translation, $matchesTranslation);
+        $varsTranslation = $matchesTranslation[0] ?? [];
+
+        // If names match, all good
+        if ($vars === $varsTranslation) {
+            return $translation;
+        }
+
+        // If counts match, we assume order is preserved
+        if (count($vars) === count($varsTranslation)) {
+            foreach ($vars as $i => $var) {
+                if ($varsTranslation[$i] !== $var) {
+                     // Replace the translated variable with the original one
+                     // We use preg_replace to replace only the first occurrence found
+                     $translation = preg_replace('/' . preg_quote($varsTranslation[$i], '/') . '/', $var, $translation, 1);
+                }
+            }
+        } else {
+             // If counts don't match, it gets tricky.
+             // Strategy: find variables in translation that are NOT in original, and try to map them to variables in original that are MISSING in translation
+             // This is heuristic and might fail if there are multiple variables
+             $missingVars = array_diff($vars, $varsTranslation);
+             $extraVars = array_diff($varsTranslation, $vars);
+
+             // If we have 1 missing and 1 extra, we can swap them
+            if (count($missingVars) === 1 && count($extraVars) === 1) {
+                $missingVar = reset($missingVars);
+                $extraVar = reset($extraVars);
+                $translation = str_replace($extraVar, $missingVar, $translation);
+            }
+        }
+
+        return $translation;
     }
 
     /**
@@ -179,7 +430,6 @@ class OllamaTranslator
             throw new Exception("Ollama Error: " . $decoded['error']);
         }
 
-        //@phpstan-ignore-next-line
         return $decoded;
     }
 }

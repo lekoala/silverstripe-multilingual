@@ -51,7 +51,8 @@ class TranslationsImportExportTask extends BuildTask
         $this->addOption("export", "Export translations", false);
         $this->addOption("export_untranslated", "Export untranslated", false);
         $this->addOption("export_auto_translate", "Translate exported strings", false);
-        $this->addOption("ref_lang", "Reference language for translation (e.g. en)", null);
+        $this->addOption("source_lang", "Source language for translation (e.g. en)", null);
+        $this->addOption("model", "Ollama model for translation", OllamaTranslator::BASE_MODEL);
         $this->addOption("export_only", "Export only these lang (comma separated)");
         $this->addOption("debug", "Show debug output and do not write files", false);
         $this->addOption("excel", "Use excel if possible (require excel-import-export module)", true);
@@ -65,7 +66,8 @@ class TranslationsImportExportTask extends BuildTask
         $export_only = $options['export_only'];
         $export_untranslated = $options['export_untranslated'];
         $export_auto_translate = $options['export_auto_translate'];
-        $ref_lang = $options['ref_lang'];
+        $source_lang = $options['source_lang'];
+        $model = $options['model'];
 
         $this->debug = $options['debug'];
 
@@ -78,7 +80,7 @@ class TranslationsImportExportTask extends BuildTask
                 if ($export_only) {
                     $onlyLang = explode(",", $export_only);
                 }
-                $this->exportTranslations($module, $excel, $onlyLang, $export_untranslated, $export_auto_translate, $ref_lang);
+                $this->exportTranslations($module, $excel, $onlyLang, $export_untranslated, $export_auto_translate, $source_lang, $model);
             }
         } else {
             $this->message("Please select a module");
@@ -248,7 +250,7 @@ class TranslationsImportExportTask extends BuildTask
      * @param bool $translate
      * @return void
      */
-    public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false, $translate = false, $refLang = null)
+    public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false, $translate = false, $sourceLang = null, $model = null)
     {
         $fullLangPath = $this->getLangPath($module);
 
@@ -284,22 +286,23 @@ class TranslationsImportExportTask extends BuildTask
         }
 
         $refMessages = [];
-        if ($refLang) {
+        if ($sourceLang) {
             $refFile = null;
             foreach ($translationFiles as $refTranslationFile) {
                 $checkRefLang = pathinfo($refTranslationFile, PATHINFO_FILENAME);
-                if ($checkRefLang == $refLang) {
+                if ($checkRefLang == $sourceLang) {
                     $refFile = $refTranslationFile;
                     break;
                 }
             }
             if ($refFile) {
                 $reader = new YamlReader;
-                $refMessages = $reader->read($refLang, $refFile);
+                $refMessages = $reader->read($sourceLang, $refFile);
             }
         }
 
         $i = 0;
+        $translator = new OllamaTranslator($model);
         foreach ($translationFiles as $translationFile) {
             $lang = pathinfo($translationFile, PATHINFO_FILENAME);
             if (!empty($onlyLang) && !in_array($lang, $onlyLang)) {
@@ -307,8 +310,6 @@ class TranslationsImportExportTask extends BuildTask
             }
             $reader = new YamlReader;
             $messages = $reader->read($lang, $translationFile);
-
-            $translator = new OllamaTranslator();
 
             foreach ($messages as $entityKey => $v) {
                 if ($untranslated) {
@@ -327,10 +328,19 @@ class TranslationsImportExportTask extends BuildTask
 
                 // Attempt auto translation / 200
                 if ($translate && count($allMessages) < 200) {
-                    if ($refLang && isset($refMessages[$entityKey])) {
-                        $v = $translator->translateWithReference($v, $lang, $defaultLang, $refMessages[$entityKey], $refLang);
+                    // Derive context from entity key
+                    $context = null;
+                    $keyParts = explode('.', $entityKey);
+                    if (count($keyParts) > 1) {
+                        $className = basename(str_replace('\\', '/', $keyParts[0]));
+                        $fieldName = end($keyParts);
+                        $context = "Field '$fieldName' in '$className'";
+                    }
+
+                    if ($sourceLang && isset($refMessages[$entityKey])) {
+                        $v = $translator->translateWithReference($v, $lang, $defaultLang, $refMessages[$entityKey], $sourceLang, $context);
                     } else {
-                        $v = $translator->translate($v, $lang, $defaultLang);
+                        $v = $translator->translate($v, $lang, $defaultLang, $context);
                     }
                 }
 

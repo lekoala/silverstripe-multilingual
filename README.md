@@ -41,7 +41,7 @@ everything can be exported to a csv file. This will create as many columns as th
 
 It can then be imported back from the file to your yml files.
 
-If you use lekoala/silverstripe-excel-import-export, this file can be exported in xlsx.
+If you use `lekoala/silverstripe-excel-import-export`, this file can be exported in xlsx.
 
 This is available from a convenient interface.
 
@@ -49,25 +49,59 @@ This is available from a convenient interface.
 
 This module uses `OllamaTranslator` to leverage local LLMs for translation.
 
-By default, it uses the `translategemma` model, which you need to pull:
+By default, it uses the `translategemma:4b` model:
 
 ```bash
-ollama pull translategemma
+ollama pull translategemma:4b
 ```
 
-### Reference Translation
+You can select a different model from the task UI via the **model** option, or pass it as a parameter.
 
-You can improve translation quality by providing a reference translation. This is supported in the `TranslationsImportExportTask` via the `--ref_lang` option.
+### Source Language
 
-For example, to export translations and translate empty strings using `fr` as a reference for `nl`:
+Use the `source_lang` option (available in both tasks) to specify the source language for translation. This is used both for loading reference `.yml` files and as the LLM's input language.
 
 ```bash
-sake dev/tasks/TranslationsImportExportTask module=yourmodule export=1 export_auto_translate=1 ref_lang=fr
+sake dev/tasks/TranslationsImportExportTask module=yourmodule export=1 export_auto_translate=1 source_lang=en
 ```
+
+### Batch Translation
+
+The translator supports **batch mode**, sending multiple strings in a single LLM call for significantly faster throughput (10–20× vs single-key). Strings without a reference translation are batched in groups of 15; strings with a reference are translated individually for quality.
+
+```php
+$translator = new OllamaTranslator();
+$results = $translator->translateBatch([
+    ['key' => 'TITLE', 'value' => 'Title', 'context' => null],
+    ['key' => 'SAVE', 'value' => 'Save', 'context' => 'Button label'],
+], 'fr', 'en');
+```
+
+### Translation Review & Audit
+
+Enable the **review_translations** option to automatically audit existing translations via the LLM. Invalid translations are corrected in-place before writing.
+
+Review also supports batch mode via `reviewBatch()`:
+
+```php
+$results = $translator->reviewBatch([
+    ['key' => 'TITLE', 'source' => 'Title', 'translation' => 'Nom', 'context' => null],
+], 'fr', 'en');
+// Returns: ['TITLE' => ['valid' => false, 'correction' => 'Titre']]
+```
+
+See `bin/test-audit.php` for a standalone audit example.
 
 ### Context Support
 
-You can also provide context to the translator to resolve ambiguities. This is handled automatically by the `MultilingualTextCollector` if the translation entity contains a `context` key (e.g. from `<%t String context="My Context" %>`).
+Context is provided to the LLM automatically in two ways:
+
+1. **Explicit**: From `_t()` calls with a `context` key (e.g. `<%t String context="My Context" %>`)
+2. **Implicit**: Derived from the entity key (e.g. `Member.FIRSTNAME` → `"Field 'FIRSTNAME' in 'Member'"`)
+
+### Progress Reporting
+
+Both translation and review operations emit progress messages during execution (e.g. `Translating batch 15/142...`, `Review complete: 50 reviewed, 3 corrected`).
 
 ## Todo
 

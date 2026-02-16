@@ -96,3 +96,104 @@ test("Context Translation", function () use ($translator) {
         echo "FAIL: Translations are identical despite context\n";
     }
 });
+
+test("Variable Correction", function () use ($translator) {
+    // This mocks the condition where the model translates the variable name
+    $original = "My {speciality}";
+    $brokenTranslation = "Mijn {specialiteit}";
+    
+    // We can't really force the model to fail, so let's unit test the logic if possible
+    // Or we subclass just for testing?
+    // Let's rely on reflection to test the protective method
+    $reflection = new ReflectionClass($translator);
+    $method = $reflection->getMethod('fixVariables');
+    $method->setAccessible(true);
+    
+    $fixed = $method->invoke($translator, $original, $brokenTranslation);
+    
+    echo "Original: $original\n";
+    echo "Broken: $brokenTranslation\n";
+    echo "Fixed: $fixed\n";
+
+    if ($fixed === "Mijn {speciality}") {
+        echo "PASS: Variable restored\n";
+    } else {
+        echo "FAIL: Variable not restored\n";
+    }
+});
+
+test("Batch Translation (en -> fr)", function () use ($translator) {
+    $entries = [
+        ['key' => 'TITLE', 'value' => 'Title', 'context' => null],
+        ['key' => 'SAVE', 'value' => 'Save', 'context' => 'Button label'],
+        ['key' => 'DELETE', 'value' => 'Delete', 'context' => 'Button label'],
+        ['key' => 'GREETING', 'value' => 'Hello {name}', 'context' => 'User greeting'],
+        ['key' => 'AUTHOR', 'value' => 'Author', 'context' => 'Content metadata'],
+    ];
+
+    echo "Sending " . count($entries) . " strings in a single batch...\n";
+    $start = microtime(true);
+    $results = $translator->translateBatch($entries, 'fr', 'en');
+    $end = microtime(true);
+    echo "Time: " . round($end - $start, 2) . "s\n\n";
+
+    $passed = 0;
+    foreach ($entries as $entry) {
+        $key = $entry['key'];
+        $translation = $results[$key] ?? '(MISSING)';
+        echo "$key: {$entry['value']} => $translation\n";
+        if ($translation !== '(MISSING)') {
+            $passed++;
+        }
+    }
+
+    echo "\n" . $passed . "/" . count($entries) . " keys translated\n";
+    if ($passed === count($entries)) {
+        echo "PASS: All keys returned\n";
+    } else {
+        echo "FAIL: Some keys missing\n";
+    }
+
+    // Check variable preservation in batch
+    if (isset($results['GREETING']) && strpos($results['GREETING'], '{name}') !== false) {
+        echo "PASS: {name} preserved in batch\n";
+    } else {
+        echo "FAIL: {name} lost in batch\n";
+    }
+});
+
+test("Batch Review (en -> fr)", function () use ($translator) {
+    $entries = [
+        ['key' => 'TITLE', 'source' => 'Title', 'translation' => 'Titre', 'context' => null],
+        ['key' => 'AUTHOR', 'source' => 'Author', 'translation' => 'Hauteur', 'context' => 'Content metadata'],
+        ['key' => 'CONTENT', 'source' => 'Content', 'translation' => 'Contenu', 'context' => null],
+    ];
+
+    echo "Reviewing " . count($entries) . " translations in a single batch...\n";
+    $start = microtime(true);
+    $results = $translator->reviewBatch($entries, 'fr', 'en');
+    $end = microtime(true);
+    echo "Time: " . round($end - $start, 2) . "s\n\n";
+
+    foreach ($entries as $entry) {
+        $key = $entry['key'];
+        $result = $results[$key] ?? null;
+        if (!$result) {
+            echo "$key: (MISSING from response)\n";
+            continue;
+        }
+        $status = $result['valid'] ? 'VALID' : 'INVALID';
+        echo "$key: {$entry['translation']} => $status";
+        if (!$result['valid'] && $result['correction']) {
+            echo " (correction: {$result['correction']})";
+        }
+        echo "\n";
+    }
+
+    // AUTHOR should be flagged as invalid (Hauteur != Auteur)
+    if (isset($results['AUTHOR']) && !$results['AUTHOR']['valid']) {
+        echo "\nPASS: AUTHOR correctly flagged as invalid\n";
+    } else {
+        echo "\nFAIL: AUTHOR should be invalid\n";
+    }
+});

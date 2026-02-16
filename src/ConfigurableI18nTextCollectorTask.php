@@ -55,9 +55,10 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $this->addOption("locale", "Locale to use", LangHelper::get_lang());
         $this->addOption("merge", "Merge with previous translations", true);
         $this->addOption("auto_translate", "Translate strings using helper", false);
-        $this->addOption("auto_translate_lang", "Base language for translation", LangHelper::get_lang());
+        $this->addOption("source_lang", "Source language for translation (e.g. en)", LangHelper::get_lang());
         $this->addOption("auto_translate_mode", "Translate new strings or all", '');
-        $this->addOption("ref_lang", "Reference language for retranslation (e.g. en)", null);
+        $this->addOption("review_translations", "Review and correct existing translations", false);
+        $this->addOption("model", "Ollama model for translation", OllamaTranslator::BASE_MODEL);
         $this->addOption("clear_unused", "Remove keys that are not used anymore", false);
         $this->addOption("debug", "Show debug messages and prevent write", false);
         $this->addOption("module", "Module", 'default', $modules);
@@ -70,9 +71,10 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $clearUnused = $options['clear_unused'];
         $debug = $options['debug'];
         $auto_translate = $options['auto_translate'];
-        $auto_translate_lang = $options['auto_translate_lang'];
+        $source_lang = $options['source_lang'];
         $auto_translate_mode = $options['auto_translate_mode'];
-        $ref_lang = $options['ref_lang'];
+        $review_translations = $options['review_translations'];
+        $model = $options['model'];
 
         $themes = Director::baseFolder() . '/themes';
         $folders = glob($themes . '/*');
@@ -84,17 +86,21 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
             $toCollect = [$module];
         }
         if ($locale) {
-            foreach ($toCollect as $module) {
-                $this->message("Proceeding with locale $locale for module $module");
+            foreach ($toCollect as $moduleName) {
+                $this->message("Proceeding with locale $locale for module $moduleName");
                 $collector = MultilingualTextCollector::create($locale);
                 $collector->setMergeWithExisting($merge);
                 $collector->setClearUnused($clearUnused);
                 $collector->setDebug($debug);
-                $collector->setAutoTranslate($auto_translate, $auto_translate_lang, $auto_translate_mode, $ref_lang);
-                $result = $collector->run([$module], $merge);
+                $collector->setAutoTranslate($auto_translate, $source_lang, $auto_translate_mode);
+                $collector->setReviewTranslations($review_translations);
+                if ($model) {
+                    $collector->setTranslatorModel($model);
+                }
+                $result = $collector->run([$moduleName], $merge);
                 if ($result) {
-                    foreach ($result as $module => $entities) {
-                        $this->message("Collected " . count($entities) . " messages for module $module");
+                    foreach ($result as $resultModule => $entities) {
+                        $this->message("Collected " . count($entities) . " messages for module $resultModule");
                     }
                 }
             }

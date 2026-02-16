@@ -51,6 +51,11 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $autoTranslate = false;
 
     /**
+     * @var boolean
+     */
+    protected $reviewTranslations = false;
+
+    /**
      * @var string
      */
     protected $autoTranslateLang = null;
@@ -58,20 +63,17 @@ class MultilingualTextCollector extends i18nTextCollector
     /**
      * @var string
      */
-    /**
-     * @var string
-     */
-    protected $autoTranslateRefLang = null;
-
-    /**
-     * @var string
-     */
     protected $autoTranslateMode = 'all';
 
     /**
-     * @var OllamaTranslator
+     * @var OllamaTranslator|null
      */
     protected $translator;
+
+    /**
+     * @var string|null
+     */
+    protected $translatorModel = null;
 
     /**
      * @return OllamaTranslator
@@ -79,7 +81,7 @@ class MultilingualTextCollector extends i18nTextCollector
     public function getTranslator()
     {
         if (!$this->translator) {
-            $this->translator = new OllamaTranslator();
+            $this->translator = new OllamaTranslator($this->translatorModel);
         }
         return $this->translator;
     }
@@ -105,10 +107,6 @@ class MultilingualTextCollector extends i18nTextCollector
         $this->reader = Injector::inst()->create(Reader::class);
         $this->writer = Injector::inst()->create(Writer::class);
     }
-
-// ... existing code ...
-
-
 
     /**
      * This is the main method to build the master string tables with the
@@ -299,69 +297,228 @@ class MultilingualTextCollector extends i18nTextCollector
 
             // attempt auto translation
             if ($this->autoTranslate) {
-                $baseLangName = $this->autoTranslateLang;
+                $sourceLang = $this->autoTranslateLang;
                 $targetLangName = $this->defaultLocale;
                 $translator = $this->getTranslator();
 
+                // Load source language file as reference for per-key strings
                 $refMessages = [];
-                if ($this->autoTranslateRefLang) {
-                     $refMasterFile = Path::join($modules[$module]->getPath(), 'lang', $this->autoTranslateRefLang . '.yml');
+                if ($sourceLang) {
+                    $refMasterFile = Path::join($modules[$module]->getPath(), 'lang', $sourceLang . '.yml');
                     if (is_file($refMasterFile)) {
-                        $refMessages = $this->getReader()->read($this->autoTranslateRefLang, $refMasterFile);
+                        $refMessages = $this->getReader()->read($sourceLang, $refMasterFile);
                     }
                 }
+
+                $total = min(count($toTranslate), $max);
+                $batchSize = 15;
+                $batch = [];
+                $refBatch = []; // keys that have reference strings → single-key mode
+                $translated = 0;
 
                 foreach ($toTranslate as $newMessageKey => $newMessageVal) {
                     $i++;
                     if ($i > $max) {
-                        continue;
+                        break;
                     }
-                    try {
-                        $context = null;
-                        if (is_array($newMessageVal) && isset($newMessageVal['default'])) {
-                            $context = $newMessageVal['context'] ?? null;
-                            // For translation purposes, we target the default value
-                            // but we keep the structure in the result
-                            // Actually, let's just translate the value?
-                            // If we update $newMessageVal to string, we lose context in the output loop
-                            // But usually translate returns string.
-                            // If the output expects array, we should return array.
-                        }
 
-                        $refString = $refMessages[$newMessageKey] ?? null;
-                        if (is_array($refString)) {
-                             $refString = $refString['default'] ?? null;
-                        }
+                    $context = $this->deriveContext($newMessageKey, $newMessageVal);
 
-                        if (is_array($newMessageVal)) {
-                            $result = [];
-                            foreach ($newMessageVal as $newMessageValKey => $newMessageValItem) {
-                                // Skip context key if present in array
-                                if ($newMessageValKey === 'context') {
-                                    $result[$newMessageValKey] = $newMessageValItem;
+                    // Get string value for batch
+                    $stringVal = is_array($newMessageVal) ? ($newMessageVal['default'] ?? '') : ($newMessageVal ?? '');
+
+                    // Get reference string for this key
+                    $refString = $refMessages[$newMessageKey] ?? null;
+                    if (is_array($refString)) {
+                        $refString = $refString['default'] ?? null;
+                    }
+
+                    if ($refString) {
+                        // Keys with reference strings use single-key mode for quality
+                        $refBatch[$newMessageKey] = [
+                            'val' => $newMessageVal,
+                            'ref' => $refString,
+                            'context' => $context,
+                        ];
+                    } else {
+                        $batch[] = [
+                            'key' => $newMessageKey,
+                            'value' => $stringVal,
+                            'context' => $context,
+                            'original' => $newMessageVal,
+                        ];
+                    }
+
+                    // Flush batch when full
+                    if (count($batch) >= $batchSize) {
+                        $translated += count($batch);
+                        Debug::message("Translating batch $translated/$total...");
+                        $batchResults = $translator->translateBatch($batch, $targetLangName, $sourceLang);
+                        foreach ($batch as $entry) {
+                            $key = $entry['key'];
+                            if (isset($batchResults[$key])) {
+                                $result = is_array($entry['original'])
+                                    ? array_merge($entry['original'], ['default' => $batchResults[$key]])
+                                    : $batchResults[$key];
+                            } else {
+                                // Batch missed this key — fallback to single
+                                try {
+                                    $result = $translator->translate($entry['value'], $targetLangName, $sourceLang, $entry['context']);
+                                    if (is_array($entry['original'])) {
+                                        $result = array_merge($entry['original'], ['default' => $result]);
+                                    }
+                                } catch (Exception $ex) {
+                                    Debug::dump($ex->getMessage());
                                     continue;
                                 }
-                                
-                                if ($refString) {
-                                    $result[$newMessageValKey] = $translator->translateWithReference($newMessageValItem, $targetLangName, $baseLangName, $refString, $this->autoTranslateRefLang, $context);
-                                } else {
-                                    $result[$newMessageValKey] = $translator->translate($newMessageValItem, $targetLangName, $baseLangName, $context);
-                                }
                             }
-                        } else {
-                            if ($refString) {
-                                $result = $translator->translateWithReference($newMessageVal, $targetLangName, $baseLangName, $refString, $this->autoTranslateRefLang, $context);
-                            } else {
-                                $result = $translator->translate($newMessageVal, $targetLangName, $baseLangName, $context);
+                            $messages[$key] = $result;
+                            if ($this->autoTranslateMode == 'all') {
+                                $existingMessages[$key] = $result;
                             }
                         }
-                        $messages[$newMessageKey] = $result;
+                        $batch = [];
+                    }
+                }
+
+                // Flush remaining batch
+                if (!empty($batch)) {
+                    $translated += count($batch);
+                    Debug::message("Translating batch $translated/$total...");
+                    $batchResults = $translator->translateBatch($batch, $targetLangName, $sourceLang);
+                    foreach ($batch as $entry) {
+                        $key = $entry['key'];
+                        if (isset($batchResults[$key])) {
+                            $result = is_array($entry['original'])
+                                ? array_merge($entry['original'], ['default' => $batchResults[$key]])
+                                : $batchResults[$key];
+                        } else {
+                            try {
+                                $result = $translator->translate($entry['value'], $targetLangName, $sourceLang, $entry['context']);
+                                if (is_array($entry['original'])) {
+                                    $result = array_merge($entry['original'], ['default' => $result]);
+                                }
+                            } catch (Exception $ex) {
+                                Debug::dump($ex->getMessage());
+                                continue;
+                            }
+                        }
+                        $messages[$key] = $result;
                         if ($this->autoTranslateMode == 'all') {
-                            $existingMessages[$newMessageKey] = $result;
+                            $existingMessages[$key] = $result;
+                        }
+                    }
+                }
+
+                // Translate reference-string entries one-by-one (quality-sensitive)
+                foreach ($refBatch as $key => $data) {
+                    $translated++;
+                    try {
+                        if (is_array($data['val'])) {
+                            $result = [];
+                            foreach ($data['val'] as $subKey => $subVal) {
+                                if ($subKey !== 'default') {
+                                    $result[$subKey] = $subVal;
+                                    continue;
+                                }
+                                $result[$subKey] = $translator->translateWithReference($subVal, $targetLangName, $sourceLang, $data['ref'], $sourceLang, $data['context']);
+                            }
+                        } else {
+                            $result = $translator->translateWithReference($data['val'], $targetLangName, $sourceLang, $data['ref'], $sourceLang, $data['context']);
+                        }
+                        $messages[$key] = $result;
+                        if ($this->autoTranslateMode == 'all') {
+                            $existingMessages[$key] = $result;
                         }
                     } catch (Exception $ex) {
                         Debug::dump($ex->getMessage());
                     }
+                }
+
+                Debug::message("Translation complete: $translated keys processed");
+            }
+
+            // Review existing translations for correctness
+            if ($this->reviewTranslations && $this->autoTranslateLang) {
+                $sourceLang = $this->autoTranslateLang;
+                $targetLangName = $this->defaultLocale;
+                $translator = $this->getTranslator();
+
+                // Load source language strings
+                $sourceMessages = [];
+                $sourceMasterFile = Path::join($modules[$module]->getPath(), 'lang', $sourceLang . '.yml');
+                if (is_file($sourceMasterFile)) {
+                    $sourceMessages = $this->getReader()->read($sourceLang, $sourceMasterFile);
+                }
+
+                if (!empty($sourceMessages)) {
+                    $batchSize = 15;
+                    $reviewBatch = [];
+                    $correctedCount = 0;
+                    $reviewTotal = 0;
+
+                    foreach ($existingMessages as $key => $targetText) {
+                        $sourceText = $sourceMessages[$key] ?? null;
+                        if (!$sourceText) {
+                            continue;
+                        }
+
+                        $sourceStr = is_array($sourceText) ? ($sourceText['default'] ?? '') : $sourceText;
+                        $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : $targetText;
+
+                        if ($sourceStr === $targetStr) {
+                            continue;
+                        }
+
+                        $context = $this->deriveContext($key, $targetText);
+                        $reviewBatch[] = [
+                            'key' => $key,
+                            'source' => $sourceStr,
+                            'translation' => $targetStr,
+                            'context' => $context,
+                        ];
+                        $reviewTotal++;
+
+                        if (count($reviewBatch) >= $batchSize) {
+                            Debug::message("Reviewing batch $reviewTotal...");
+                            $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
+                            foreach ($batchResults as $rKey => $rResult) {
+                                if (!$rResult['valid'] && $rResult['correction']) {
+                                    $correctedCount++;
+                                    if ($this->debug) {
+                                        Debug::message("Review corrected [$rKey]: => '{$rResult['correction']}'");
+                                    }
+                                    if (is_array($existingMessages[$rKey])) {
+                                        $existingMessages[$rKey]['default'] = $rResult['correction'];
+                                    } else {
+                                        $existingMessages[$rKey] = $rResult['correction'];
+                                    }
+                                }
+                            }
+                            $reviewBatch = [];
+                        }
+                    }
+
+                    // Flush remaining review batch
+                    if (!empty($reviewBatch)) {
+                        Debug::message("Reviewing batch $reviewTotal...");
+                        $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
+                        foreach ($batchResults as $rKey => $rResult) {
+                            if (!$rResult['valid'] && $rResult['correction']) {
+                                $correctedCount++;
+                                if ($this->debug) {
+                                    Debug::message("Review corrected [$rKey]: => '{$rResult['correction']}'");
+                                }
+                                if (is_array($existingMessages[$rKey])) {
+                                    $existingMessages[$rKey]['default'] = $rResult['correction'];
+                                } else {
+                                    $existingMessages[$rKey] = $rResult['correction'];
+                                }
+                            }
+                        }
+                    }
+
+                    Debug::message("Review complete: $reviewTotal reviewed, $correctedCount corrected");
                 }
             }
 
@@ -591,17 +748,81 @@ class MultilingualTextCollector extends i18nTextCollector
      * Set the value of autoTranslate
      *
      * @param boolean $autoTranslate
-     * @param string|null $lang
-     * @param string $mode
-     * @param string|null $refLang
+     * @param string|null $sourceLang Source language code (e.g. 'en')
+     * @param string $mode 'new' or 'all'
      * @return self
      */
-    public function setAutoTranslate($autoTranslate, $lang = null, $mode = 'new', $refLang = null)
+    public function setAutoTranslate($autoTranslate, $sourceLang = null, $mode = 'new')
     {
         $this->autoTranslate = $autoTranslate;
-        $this->autoTranslateLang = $lang;
+        $this->autoTranslateLang = $sourceLang;
         $this->autoTranslateMode = $mode;
-        $this->autoTranslateRefLang = $refLang;
         return $this;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getTranslatorModel(): ?string
+    {
+        return $this->translatorModel;
+    }
+
+    /**
+     * @param string|null $model
+     * @return self
+     */
+    public function setTranslatorModel(?string $model)
+    {
+        $this->translatorModel = $model;
+        // Reset cached translator so new model takes effect
+        $this->translator = null;
+        return $this;
+    }
+
+    /**
+     * Get the value of reviewTranslations
+     *
+     * @return boolean
+     */
+    public function getReviewTranslations()
+    {
+        return $this->reviewTranslations;
+    }
+
+    /**
+     * Set the value of reviewTranslations
+     *
+     * @param boolean $reviewTranslations
+     * @return self
+     */
+    public function setReviewTranslations($reviewTranslations)
+    {
+        $this->reviewTranslations = $reviewTranslations;
+        return $this;
+    }
+
+    /**
+     * Derive context from an entity key and its value
+     *
+     * @param string $key Entity key (e.g. "SilverStripe\\Security\\Member.FIRSTNAME")
+     * @param mixed $value Entity value (string or array with 'context' key)
+     * @return string|null
+     */
+    protected function deriveContext(string $key, $value): ?string
+    {
+        $context = null;
+        if (is_array($value)) {
+            $context = $value['context'] ?? null;
+        }
+        if (!$context) {
+            $keyParts = explode('.', $key);
+            if (count($keyParts) > 1) {
+                $className = basename(str_replace('\\', '/', $keyParts[0]));
+                $fieldName = end($keyParts);
+                $context = "Field '$fieldName' in '$className'";
+            }
+        }
+        return $context;
     }
 }

@@ -111,7 +111,7 @@ trait BuildTaskTools
      * @param string $title
      * @param mixed $default Default value. Input type will be based on this (bool => checkbox, etc)
      * @param array|Map $list An array of value for a dropdown
-     * @return void
+     * @return array
      */
     protected function addOption($key, $title, $default = '', $list = null)
     {
@@ -209,9 +209,6 @@ trait BuildTaskTools
             $message = strip_tags($message);
             if (isset($cli_map[$type])) {
                 $message = $cli_map[$type] . ' ' . $message;
-            }
-            if (!is_string($message)) {
-                $message = json_encode($message);
             }
             echo "  $message\n";
         } else {
