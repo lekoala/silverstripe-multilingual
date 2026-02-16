@@ -56,13 +56,16 @@ class GlossaryTest extends TestCase
 
         $task = new class extends GlossaryTask {
             public $tp;
-            protected function getLangPath(string $module): string {
+            protected function getLangPath(string $module): string
+            {
                 return $this->tp . '/lang';
             }
-            public function testGenerate($module, $sourceLang, $targetLangFilter = null, $minLength = 3) {
+            public function testGenerate($module, $sourceLang, $targetLangFilter = null, $minLength = 3)
+            {
                 $this->generate($module, $sourceLang, $targetLangFilter, $minLength);
             }
-            public function message($text, $status = 'info') {
+            public function message($text, $status = 'info')
+            {
                 // do nothing or capture for assertion
             }
         };
@@ -88,7 +91,8 @@ class GlossaryTest extends TestCase
         file_put_contents($csvFile, "Word,Mot\nPhrase,\"Long, phrase\"");
 
         $task = new class extends GlossaryTask {
-            public function testParseCsv($file) {
+            public function testParseCsv($file)
+            {
                 return $this->parseCsv($file);
             }
         };
@@ -108,13 +112,16 @@ class GlossaryTest extends TestCase
 
         $translator = new class extends DeeplTranslator {
             public $tp;
-            public function __construct() {
+            public function __construct()
+            {
                 // bypass parent constructor but it requires client
             }
-            protected function getGlossaryMapPath(): string {
+            protected function getGlossaryMapPath(): string
+            {
                 return $this->tp . '/glossaries/map.json';
             }
-            public function testGetGlossaryId() {
+            public function testGetGlossaryId()
+            {
                 return $this->getGlossaryId();
             }
         };
