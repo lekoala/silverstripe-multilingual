@@ -247,7 +247,7 @@ class OllamaTranslator implements TranslatorInterface
                         $correctionStr = (string)$correction;
                         $translationStr = (string)$entry['translation'];
                         if (strlen($correctionStr) < strlen($translationStr) && strpos($translationStr, $correctionStr) !== false) {
-                            // It's a substring of the original translation. 
+                            // It's a substring of the original translation.
                             // Did the LLM mean to keep only that part? Or did it truncate?
                             // If the length diff is > 50%, it's suspicious
                             if (strlen($correctionStr) < strlen($translationStr) / 2) {
