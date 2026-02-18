@@ -3,3 +3,4 @@ en:
     title: "Title"
     content: "Content"
     author: "Author"
+    var: "My name is {name}"

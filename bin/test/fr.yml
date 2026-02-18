@@ -3,4 +3,5 @@ fr:
     title: "Nom"
     content: "Content"
     author: "Hauteur"
+    var: "Mon nom est {nom}"
     

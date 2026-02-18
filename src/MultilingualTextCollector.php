@@ -493,6 +493,14 @@ class MultilingualTextCollector extends i18nTextCollector
                             $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
                             foreach ($batchResults as $rKey => $rResult) {
                                 if (!$rResult['valid'] && $rResult['correction']) {
+                                    // Validate variables in correction
+                                    if (!$this->checkVariables($sourceStr, $rResult['correction'])) {
+                                        if ($this->debug) {
+                                            Debug::message("Review rejected correction for [$rKey]: Variable mismatch in '{$rResult['correction']}'");
+                                        }
+                                        continue;
+                                    }
+
                                     $correctedCount++;
                                     if ($this->debug) {
                                         Debug::message("Review corrected [$rKey]: => '{$rResult['correction']}'");
@@ -501,6 +509,12 @@ class MultilingualTextCollector extends i18nTextCollector
                                         $existingMessages[$rKey]['default'] = $rResult['correction'];
                                     } else {
                                         $existingMessages[$rKey] = $rResult['correction'];
+                                    }
+                                }
+                                // Also validate variables for items deemed valid by LLM
+                                elseif ($rResult['valid']) {
+                                    if (!$this->checkVariables($sourceStr, $targetStr)) {
+                                        Debug::message("Review warning [$rKey]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
                                     }
                                 }
                             }
@@ -514,6 +528,14 @@ class MultilingualTextCollector extends i18nTextCollector
                         $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
                         foreach ($batchResults as $rKey => $rResult) {
                             if (!$rResult['valid'] && $rResult['correction']) {
+                                // Validate variables in correction
+                                if (!$this->checkVariables($sourceStr, $rResult['correction'])) {
+                                    if ($this->debug) {
+                                        Debug::message("Review rejected correction for [$rKey]: Variable mismatch in '{$rResult['correction']}'");
+                                    }
+                                    continue;
+                                }
+
                                 $correctedCount++;
                                 if ($this->debug) {
                                     Debug::message("Review corrected [$rKey]: => '{$rResult['correction']}'");
@@ -522,6 +544,12 @@ class MultilingualTextCollector extends i18nTextCollector
                                     $existingMessages[$rKey]['default'] = $rResult['correction'];
                                 } else {
                                     $existingMessages[$rKey] = $rResult['correction'];
+                                }
+                            }
+                            // Also validate variables for items deemed valid by LLM
+                            elseif ($rResult['valid']) {
+                                if (!$this->checkVariables($sourceStr, $targetStr)) {
+                                    Debug::message("Review warning [$rKey]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
                                 }
                             }
                         }
@@ -795,6 +823,28 @@ class MultilingualTextCollector extends i18nTextCollector
     public function getTranslatorDriver(): string
     {
         return $this->translatorDriver;
+    }
+
+    /**
+     * @param string $source
+     * @param string $target
+     * @return boolean
+     */
+    public function checkVariables($source, $target)
+    {
+        if (empty($source) || empty($target)) {
+            return true;
+        }
+        preg_match_all('/\{(\w+)\}/', $source, $sourceMatches);
+        preg_match_all('/\{(\w+)\}/', $target, $targetMatches);
+
+        $sourceVars = $sourceMatches[1];
+        $targetVars = $targetMatches[1];
+
+        sort($sourceVars);
+        sort($targetVars);
+
+        return $sourceVars === $targetVars;
     }
 
     /**

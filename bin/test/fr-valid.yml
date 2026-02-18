@@ -3,4 +3,4 @@ fr:
     title: "Titre"
     content: "Contenu"
     author: "Auteur"
-    
+    var: "Mon nom est {name}"
