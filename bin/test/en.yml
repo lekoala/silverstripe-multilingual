@@ -4,3 +4,4 @@ en:
     content: "Content"
     author: "Author"
     var: "My name is {name}"
+    novar: "at"

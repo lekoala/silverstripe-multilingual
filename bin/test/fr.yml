@@ -4,4 +4,5 @@ fr:
     content: "Content"
     author: "Hauteur"
     var: "Mon nom est {nom}"
+    novar: "à {code}"
     

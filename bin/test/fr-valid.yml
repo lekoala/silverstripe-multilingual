@@ -4,3 +4,4 @@ fr:
     content: "Contenu"
     author: "Auteur"
     var: "Mon nom est {name}"
+    novar: "à"
