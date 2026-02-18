@@ -27,7 +27,8 @@
         "squizlabs/php_codesniffer": "^3.5",
         "phpstan/phpstan": "^2.1",
         "deeplcom/deepl-php": "^1.16",
-        "tractorcow/silverstripe-fluent": "^7.3"
+        "tractorcow/silverstripe-fluent": "^7.3",
+        "phpoffice/phpspreadsheet": "^5.4"
     },
     "suggest": {
         "tractorcow/silverstripe-fluent": "Add multi locales support",

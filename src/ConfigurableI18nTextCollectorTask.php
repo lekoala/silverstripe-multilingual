@@ -59,6 +59,8 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $this->addOption("source_lang", "Source language for translation (e.g. en)", LangHelper::get_lang());
         $this->addOption("auto_translate_mode", "Translate new strings or all", '');
         $this->addOption("review_translations", "Review and correct existing translations", false);
+        $this->addOption("batch_review", "Batch review (faster but less accurate)", false);
+        $this->addOption("review_limit", "Review limit (stop after X corrections)", 0);
         $defaultDriver = TranslatorFactory::getDefaultDriver();
 
         $this->addOption("driver", "Translator driver (ollama or deepl) [default: $defaultDriver]", null);
@@ -77,6 +79,8 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $source_lang = $options['source_lang'];
         $auto_translate_mode = $options['auto_translate_mode'];
         $review_translations = $options['review_translations'];
+        $batch_review = $options['batch_review'];
+        $review_limit = (int) $options['review_limit'];
         $driver = $options['driver'];
 
         $themes = Director::baseFolder() . '/themes';
@@ -97,6 +101,8 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
                 $collector->setDebug($debug);
                 $collector->setAutoTranslate($auto_translate, $source_lang, $auto_translate_mode);
                 $collector->setReviewTranslations($review_translations);
+                $collector->setBatchReview($batch_review);
+                $collector->setReviewLimit($review_limit);
                 if ($driver) {
                     $collector->setTranslatorDriver($driver);
                 }

@@ -47,7 +47,7 @@ class DeeplTranslator implements TranslatorInterface
                 $options[TranslatorOptions::HTTP_CLIENT] = new \GuzzleHttp\Client(['verify' => $verify]);
             } else {
                 if ($verify === false) {
-                     throw new Exception("To disable SSL, GuzzleHttp\Client must be available.");
+                    throw new Exception("To disable SSL, GuzzleHttp\Client must be available.");
                 }
                 // If we cannot verify using Guzzle, we fall back to default behavior
             }

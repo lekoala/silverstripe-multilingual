@@ -83,6 +83,16 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $translatorModel = null;
 
     /**
+     * @var boolean
+     */
+    protected $batchReview = false;
+
+    /**
+     * @var int
+     */
+    protected $reviewLimit = 0;
+
+    /**
      * @return TranslatorInterface
      */
     public function getTranslator(): TranslatorInterface
@@ -502,42 +512,82 @@ class MultilingualTextCollector extends i18nTextCollector
 
                         $reviewTotal++;
 
-                        if (count($reviewBatch) >= $batchSize) {
-                            Debug::message("Reviewing batch $reviewTotal...");
-                            $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
-                            foreach ($batchResults as $rKey => $rResult) {
-                                if (!$rResult['valid'] && $rResult['correction']) {
-                                    // Validate variables in correction
-                                    if (!$this->checkVariables($sourceStr, $rResult['correction'])) {
-                                        if ($this->debug) {
-                                            Debug::message("Review rejected correction for [$rKey]: Variable mismatch in '{$rResult['correction']}'");
+                        // Check limit
+                        if ($this->reviewLimit > 0 && $correctedCount >= $this->reviewLimit) {
+                            Debug::message("Review limit reached ($this->reviewLimit). Stopping review.");
+                            break;
+                        }
+
+                        if ($this->batchReview) {
+                            if (count($reviewBatch) >= $batchSize) {
+                                Debug::message("Reviewing batch $reviewTotal...");
+                                $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
+                                foreach ($batchResults as $rKey => $rResult) {
+                                    // Re-fetch source and target strings for validation
+                                    $targetText = $existingMessages[$rKey] ?? '';
+                                    $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : $targetText;
+                                    $sourceText = $sourceMessages[$rKey] ?? '';
+                                    $sourceStr = is_array($sourceText) ? ($sourceText['default'] ?? '') : $sourceText;
+
+                                    if (!$rResult['valid'] && $rResult['correction']) {
+                                        // Validate variables in correction
+                                        if (!$this->checkVariables($sourceStr, $rResult['correction'])) {
+                                            if ($this->debug) {
+                                                Debug::message("Review rejected correction for [$rKey]: Variable mismatch in '{$rResult['correction']}'");
+                                            }
+                                            continue;
                                         }
-                                        continue;
-                                    }
 
-                                    $correctedCount++;
-                                    // Always show corrections, not just in debug
-                                    Debug::message("Review fixed [$rKey]: '{$targetStr}' => '{$rResult['correction']}'");
+                                        $correctedCount++;
+                                        // Always show corrections, not just in debug
+                                        Debug::message("Review fixed [$rKey]: '{$targetStr}' => '{$rResult['correction']}'");
 
-                                    if (is_array($existingMessages[$rKey])) {
-                                        $existingMessages[$rKey]['default'] = $rResult['correction'];
-                                    } else {
-                                        $existingMessages[$rKey] = $rResult['correction'];
+                                        if (is_array($existingMessages[$rKey])) {
+                                            $existingMessages[$rKey]['default'] = $rResult['correction'];
+                                        } else {
+                                            $existingMessages[$rKey] = $rResult['correction'];
+                                        }
+                                    } elseif ($rResult['valid']) {
+                                        // Also validate variables for items deemed valid by LLM
+                                        if (!$this->checkVariables($sourceStr, $targetStr)) {
+                                            Debug::message("Review warning [$rKey]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
+                                        }
                                     }
                                 }
-                                // Also validate variables for items deemed valid by LLM
-                                elseif ($rResult['valid']) {
-                                    if (!$this->checkVariables($sourceStr, $targetStr)) {
-                                        Debug::message("Review warning [$rKey]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
+                                $reviewBatch = [];
+                            }
+                        } else {
+                            // Single review
+                            Debug::message("Reviewing $key...");
+                            $rResult = $translator->review($sourceStr, $targetStr, $targetLangName, $sourceLang, $context);
+                            if (!$rResult['valid'] && $rResult['correction']) {
+                                // Validate variables in correction
+                                if (!$this->checkVariables($sourceStr, $rResult['correction'])) {
+                                    if ($this->debug) {
+                                        Debug::message("Review rejected correction for [$key]: Variable mismatch in '{$rResult['correction']}'");
                                     }
+                                    continue;
+                                }
+
+                                $correctedCount++;
+                                Debug::message("Review fixed [$key]: '{$targetStr}' => '{$rResult['correction']}'");
+
+                                if (is_array($existingMessages[$key])) {
+                                    $existingMessages[$key]['default'] = $rResult['correction'];
+                                } else {
+                                    $existingMessages[$key] = $rResult['correction'];
+                                }
+                            } elseif ($rResult['valid']) {
+                                if (!$this->checkVariables($sourceStr, $targetStr)) {
+                                    Debug::message("Review warning [$key]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
                                 }
                             }
-                            $reviewBatch = [];
                         }
                     }
 
+
                     // Flush remaining review batch
-                    if (!empty($reviewBatch)) {
+                    if ($this->batchReview && !empty($reviewBatch)) {
                         Debug::message("Reviewing batch $reviewTotal...");
                         $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
                         foreach ($batchResults as $rKey => $rResult) {
@@ -565,9 +615,8 @@ class MultilingualTextCollector extends i18nTextCollector
                                 } else {
                                     $existingMessages[$rKey] = $rResult['correction'];
                                 }
-                            }
-                            // Also validate variables for items deemed valid by LLM
-                            elseif ($rResult['valid']) {
+                            } elseif ($rResult['valid']) {
+                                // Also validate variables for items deemed valid by LLM
                                 if (!$this->checkVariables($sourceStr, $targetStr)) {
                                     Debug::message("Review warning [$rKey]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
                                 }
@@ -897,6 +946,28 @@ class MultilingualTextCollector extends i18nTextCollector
     public function setReviewTranslations($reviewTranslations)
     {
         $this->reviewTranslations = $reviewTranslations;
+        return $this;
+    }
+
+    public function getBatchReview(): bool
+    {
+        return $this->batchReview;
+    }
+
+    public function setBatchReview(bool $batchReview)
+    {
+        $this->batchReview = $batchReview;
+        return $this;
+    }
+
+    public function getReviewLimit(): int
+    {
+        return $this->reviewLimit;
+    }
+
+    public function setReviewLimit(int $reviewLimit)
+    {
+        $this->reviewLimit = $reviewLimit;
         return $this;
     }
 
