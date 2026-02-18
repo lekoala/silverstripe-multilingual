@@ -61,6 +61,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $this->addOption("review_translations", "Review and correct existing translations", false);
         $this->addOption("batch_review", "Batch review (faster but less accurate)", false);
         $this->addOption("review_limit", "Review limit (stop after X corrections)", 0);
+        $this->addOption("variable_only", "Review only for variable mismatches", false);
         $defaultDriver = TranslatorFactory::getDefaultDriver();
 
         $this->addOption("driver", "Translator driver (ollama or deepl) [default: $defaultDriver]", null);
@@ -81,6 +82,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
         $review_translations = $options['review_translations'];
         $batch_review = $options['batch_review'];
         $review_limit = (int) $options['review_limit'];
+        $variable_only = $options['variable_only'];
         $driver = $options['driver'];
 
         $themes = Director::baseFolder() . '/themes';
@@ -103,6 +105,7 @@ class ConfigurableI18nTextCollectorTask extends BuildTask
                 $collector->setReviewTranslations($review_translations);
                 $collector->setBatchReview($batch_review);
                 $collector->setReviewLimit($review_limit);
+                $collector->setVariableOnly($variable_only);
                 if ($driver) {
                     $collector->setTranslatorDriver($driver);
                 }

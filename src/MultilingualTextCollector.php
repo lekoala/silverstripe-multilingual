@@ -93,6 +93,11 @@ class MultilingualTextCollector extends i18nTextCollector
     protected $reviewLimit = 0;
 
     /**
+     * @var boolean
+     */
+    protected $variableOnly = false;
+
+    /**
      * @return TranslatorInterface
      */
     public function getTranslator(): TranslatorInterface
@@ -113,6 +118,24 @@ class MultilingualTextCollector extends i18nTextCollector
     public function setTranslator(TranslatorInterface $translator)
     {
         $this->translator = $translator;
+        return $this;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function getVariableOnly()
+    {
+        return $this->variableOnly;
+    }
+
+    /**
+     * @param boolean $variableOnly
+     * @return self
+     */
+    public function setVariableOnly($variableOnly)
+    {
+        $this->variableOnly = $variableOnly;
         return $this;
     }
 
@@ -493,6 +516,13 @@ class MultilingualTextCollector extends i18nTextCollector
                         $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : (string)$targetText;
 
                         if ($sourceStr === $targetStr) {
+                            continue;
+                        }
+
+                        if ($this->variableOnly) {
+                            if (!$this->checkVariables($sourceStr, $targetStr)) {
+                                Debug::message("Review warning [$key]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
+                            }
                             continue;
                         }
 
