@@ -238,8 +238,8 @@ class OllamaTranslator implements TranslatorInterface
                             $correction = trim($cm[1]);
                         }
 
-                        // Remove "Response:" or "Correction:" prefixes if they were included in the correction
-                        $correction = preg_replace('/^(Response|Correction|Note)\s*[:\-]\s*/i', '', (string)$correction);
+                        // Remove common technical labels but PRESERVE content markers like '#'
+                        $correction = preg_replace('/^(Response|Correction|Note|Fixed|Suggestion)\b\s*[:\-]?\s*/i', '', (string)$correction);
                         $correction = trim($correction, '"\' ');
 
                         // Sanity check: if correction is a strict substring of the previous translation or source
@@ -327,8 +327,8 @@ class OllamaTranslator implements TranslatorInterface
                 $correction = $response;
             }
 
-            // Remove "Response:" or "Correction:" prefixes if they were included in the correction
-            $correction = preg_replace('/^(Response|Correction|Note)\s*[:\-]\s*/i', '', (string)$correction);
+            // Remove common technical labels but PRESERVE content markers like '#'
+            $correction = preg_replace('/^(Response|Correction|Note|Fixed|Suggestion)\b\s*[:\-]?\s*/i', '', (string)$correction);
             $correction = trim($correction, '"\' ');
         }
 
