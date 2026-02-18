@@ -10,6 +10,7 @@ use SilverStripe\i18n\Messages\YamlReader;
 use SilverStripe\Core\Manifest\ModuleResourceLoader;
 use DeepL\DeepLClient;
 use DeepL\MultilingualGlossaryDictionaryEntries;
+use SilverStripe\ORM\ArrayLib;
 
 /**
  * Manage DeepL Glossaries
@@ -37,7 +38,7 @@ class GlossaryTask extends BuildTask
     {
         $this->request = $request;
 
-        $actions = ['generate', 'sync', 'list'];
+        $actions = ArrayLib::valuekey(['generate', 'sync', 'list']);
         $this->addOption("action", "Action to perform", null, $actions);
         $this->addOption("module", "Module to scan (for generate)", 'app');
         $this->addOption("source_lang", "Source language", 'en');
@@ -105,6 +106,7 @@ class GlossaryTask extends BuildTask
         foreach ($files as $file) {
             $targetLang = pathinfo($file, PATHINFO_FILENAME);
             if ($targetLang === $sourceLang) {
+                $this->message("Target lang must be different than source lang", "error");
                 continue;
             }
             if ($targetLangFilter && $targetLang !== $targetLangFilter) {
