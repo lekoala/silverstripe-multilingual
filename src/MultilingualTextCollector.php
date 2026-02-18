@@ -521,7 +521,17 @@ class MultilingualTextCollector extends i18nTextCollector
 
                         if ($this->variableOnly) {
                             if (!$this->checkVariables($sourceStr, $targetStr)) {
-                                Debug::message("Review warning [$key]: Variable mismatch in existing translation '{$targetStr}' (Source: '$sourceStr')");
+                                Debug::message("Review fixing [$key]: Variable mismatch detected. Retranslating...");
+                                $newTranslation = $translator->translate($sourceStr, $targetLangName, $sourceLang, $this->deriveContext($key, $targetText));
+                                if ($newTranslation) {
+                                    $correctedCount++;
+                                    Debug::message("Review fixed [$key]: '{$targetStr}' => '{$newTranslation}'");
+                                    if (is_array($existingMessages[$key])) {
+                                        $existingMessages[$key]['default'] = $newTranslation;
+                                    } else {
+                                        $existingMessages[$key] = $newTranslation;
+                                    }
+                                }
                             }
                             continue;
                         }

@@ -50,6 +50,10 @@
         "lint": "phpcs src/ tests/",
         "lint-clean": "phpcbf src/ tests/",
         "phpstan": "phpstan analyze src/ tests/",
+        "check": [
+            "composer run lint",
+            "composer run phpstan"
+        ],
         "test": "phpunit -v"
     },
     "config": {
