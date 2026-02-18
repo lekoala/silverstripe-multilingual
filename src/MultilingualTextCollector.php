@@ -538,6 +538,14 @@ class MultilingualTextCollector extends i18nTextCollector
                                             continue;
                                         }
 
+                                        // Ensure correction is not just the key or the source string
+                                        if ($rResult['correction'] === $rKey || $rResult['correction'] === $sourceStr) {
+                                            if ($this->debug) {
+                                                Debug::message("Review rejected correction for [$rKey]: Correction is identical to key or source string");
+                                            }
+                                            continue;
+                                        }
+
                                         $correctedCount++;
                                         // Always show corrections, not just in debug
                                         Debug::message("Review fixed [$rKey]: '{$targetStr}' => '{$rResult['correction']}'");
@@ -565,6 +573,14 @@ class MultilingualTextCollector extends i18nTextCollector
                                 if (!$this->checkVariables($sourceStr, $rResult['correction'])) {
                                     if ($this->debug) {
                                         Debug::message("Review rejected correction for [$key]: Variable mismatch in '{$rResult['correction']}'");
+                                    }
+                                    continue;
+                                }
+
+                                // Ensure correction is not just the key or the source string
+                                if ($rResult['correction'] === $key || $rResult['correction'] === $sourceStr) {
+                                    if ($this->debug) {
+                                        Debug::message("Review rejected correction for [$key]: Correction is identical to key or source string");
                                     }
                                     continue;
                                 }
@@ -602,6 +618,14 @@ class MultilingualTextCollector extends i18nTextCollector
                                 if (!$this->checkVariables($sourceStr, $rResult['correction'])) {
                                     if ($this->debug) {
                                         Debug::message("Review rejected correction for [$rKey]: Variable mismatch in '{$rResult['correction']}'");
+                                    }
+                                    continue;
+                                }
+
+                                // Ensure correction is not just the key or the source string
+                                if ($rResult['correction'] === $rKey || $rResult['correction'] === $sourceStr) {
+                                    if ($this->debug) {
+                                        Debug::message("Review rejected correction for [$rKey]: Correction is identical to key or source string");
                                     }
                                     continue;
                                 }

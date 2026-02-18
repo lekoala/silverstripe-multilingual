@@ -194,11 +194,12 @@ class OllamaTranslator implements TranslatorInterface
         $toName = $this->expandLang($to);
 
         $prompt = "You are a professional translation reviewer.\n";
-        $prompt .= "For each numbered entry, respond with the same number followed by VALID or INVALID: correction.\n";
-        $prompt .= "Critically important: If the translation is invalid, provide the FULL corrected translation, not just the fixed part.\n\n";
-        $prompt .= "Example responses:\n";
+        $prompt .= "Task: Check if the translations are correct and natural. For each item, output ONLY either 'VALID' or 'INVALID: Correction'.\n";
+        $prompt .= "IMPORTANT: The correction must be the FULL translated string, not just a segment. Do NOT include any 'Response:' or 'Note:' prefixes in your correction.\n\n";
+
+        $prompt .= "Examples:\n";
         $prompt .= "1. VALID\n";
-        $prompt .= "2. INVALID: Au revoir (Full correction)\n\n";
+        $prompt .= "2. INVALID: Au revoir\n\n";
         $prompt .= "Entries to review:\n";
 
         $keys = [];
@@ -225,22 +226,21 @@ class OllamaTranslator implements TranslatorInterface
                 $num = (int)$m[1];
                 $verdict = trim($m[2]);
                 if (isset($keys[$num])) {
-                    if (str_starts_with(strtoupper($verdict), 'VALID')) {
+                    $verdictUpper = strtoupper($verdict);
+                    if (str_starts_with($verdictUpper, 'VALID')) {
                         $results[$keys[$num]] = ['valid' => true, 'correction' => null];
                     } else {
+                        // Clean up verdict to extract correction
                         $correction = $verdict;
-                        if (str_starts_with(strtoupper($verdict), 'INVALID:')) {
+                        if (str_starts_with($verdictUpper, 'INVALID:')) {
                             $correction = trim(substr($verdict, 8));
-                        } else {
-                            // If it doesn't start with VALID/INVALID, assume it's lost
-                            if (strpos($verdict, ' ') === false && str_word_count($entry['source']) > 1) {
-                                // Single word response for multi-word source? Suspect truncation/hallucination
-                                if (strpos($entry['source'], $verdict) !== false) {
-                                    // The LLM likely just outputted a segment of the source
-                                    $correction = $entry['source'];
-                                }
-                            }
+                        } elseif (preg_match('/INVALID\s*[:\-]\s*(.+)/i', $verdict, $cm)) {
+                            $correction = trim($cm[1]);
                         }
+
+                        // Remove "Response:" or "Correction:" prefixes if they were included in the correction
+                        $correction = preg_replace('/^(Response|Correction|Note)\s*[:\-]\s*/i', '', (string)$correction);
+                        $correction = trim($correction, '"\' ');
 
                         // Sanity check: if correction is a strict substring of the previous translation or source
                         // and is significantly shorter, it's likely a truncation error
@@ -282,7 +282,8 @@ class OllamaTranslator implements TranslatorInterface
         $toName = $this->expandLang($to);
 
         $prompt = "You are a professional translation reviewer.\n";
-        $prompt .= "Task: Check if the translation is correct.\n\n";
+        $prompt .= "Task: Check if the translation is correct and natural. Output ONLY 'VALID' or 'INVALID: Correction'.\n";
+        $prompt .= "IMPORTANT: The correction must be the FULL translated string, not just a segment. Do NOT include any 'Response:' or 'Note:' prefixes in your correction.\n\n";
 
         $prompt .= "Example 1:\n";
         $prompt .= "Source (English): Hello\n";
@@ -293,11 +294,6 @@ class OllamaTranslator implements TranslatorInterface
         $prompt .= "Source (English): Goodbye\n";
         $prompt .= "Translation (French): Bonjour\n";
         $prompt .= "Response: INVALID: Au revoir\n\n";
-
-        $prompt .= "Example 3:\n";
-        $prompt .= "Source (English): Title\n";
-        $prompt .= "Translation (French): Nom\n";
-        $prompt .= "Response: INVALID: Titre\n\n";
 
         $prompt .= "Now review the following:\n";
         if ($context) {
@@ -310,7 +306,8 @@ class OllamaTranslator implements TranslatorInterface
         $response = $this->generate($prompt)['response'];
         $response = trim($response);
 
-        $valid = str_starts_with(strtoupper($response), 'VALID');
+        $verdictUpper = strtoupper($response);
+        $valid = str_starts_with($verdictUpper, 'VALID');
         $correction = null;
         $comment = null;
 
@@ -320,13 +317,19 @@ class OllamaTranslator implements TranslatorInterface
                 $comment = null;
             }
         } else {
-            // Try to extract correction
-            if (str_starts_with(strtoupper($response), 'INVALID:')) {
+            // Clean up verdict to extract correction
+            if (str_starts_with($verdictUpper, 'INVALID:')) {
                 $correction = trim(substr($response, 8));
+            } elseif (preg_match('/INVALID\s*[:\-]\s*(.+)/si', $response, $cm)) {
+                $correction = trim($cm[1]);
             } else {
                 // Fallback if model didn't follow instruction perfectly
                 $correction = $response;
             }
+
+            // Remove "Response:" or "Correction:" prefixes if they were included in the correction
+            $correction = preg_replace('/^(Response|Correction|Note)\s*[:\-]\s*/i', '', (string)$correction);
+            $correction = trim($correction, '"\' ');
         }
 
         return [
