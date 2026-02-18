@@ -270,13 +270,13 @@ class OllamaTranslator implements TranslatorInterface
      * Review a translation
      *
      * @param string $string Source string
-     * @param string $translation Target string
+     * @param string|null $translation Target string
      * @param string $to Target language
      * @param string $from Source language
      * @param string|null $context Context
      * @return array{valid:bool,correction:?string,comment:?string}
      */
-    public function review(string $string, string $translation, string $to, string $from, ?string $context = null): array
+    public function review(string $string, ?string $translation, string $to, string $from, ?string $context = null): array
     {
         $fromName = $this->expandLang($from);
         $toName = $this->expandLang($to);

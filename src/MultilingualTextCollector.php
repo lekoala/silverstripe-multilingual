@@ -490,7 +490,7 @@ class MultilingualTextCollector extends i18nTextCollector
                         }
 
                         $sourceStr = is_array($sourceText) ? ($sourceText['default'] ?? '') : $sourceText;
-                        $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : $targetText;
+                        $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : (string)$targetText;
 
                         if ($sourceStr === $targetStr) {
                             continue;
@@ -525,7 +525,7 @@ class MultilingualTextCollector extends i18nTextCollector
                                 foreach ($batchResults as $rKey => $rResult) {
                                     // Re-fetch source and target strings for validation
                                     $targetText = $existingMessages[$rKey] ?? '';
-                                    $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : $targetText;
+                                    $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : (string)$targetText;
                                     $sourceText = $sourceMessages[$rKey] ?? '';
                                     $sourceStr = is_array($sourceText) ? ($sourceText['default'] ?? '') : $sourceText;
 

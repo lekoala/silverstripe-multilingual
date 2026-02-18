@@ -152,7 +152,7 @@ class DeeplTranslator implements TranslatorInterface
         return $results;
     }
 
-    public function review(string $string, string $translation, string $to, string $from, ?string $context = null): array
+    public function review(string $string, ?string $translation, string $to, string $from, ?string $context = null): array
     {
         // Simulate review by re-translating and comparing
         $newTranslation = $this->translate($string, $to, $from, $context);
