@@ -42,8 +42,8 @@ class OllamaTranslator implements TranslatorInterface
         ];
 
         if ($code) {
-             // In case we passed a full name, try to find the code
-             $sub = array_search($lang, $map);
+            // In case we passed a full name, try to find the code
+            $sub = array_search($lang, $map);
             if ($sub) {
                 return $sub;
             }
@@ -52,7 +52,7 @@ class OllamaTranslator implements TranslatorInterface
                     return $k;
                 }
             }
-             return $lang;
+            return $lang;
         }
 
         return $map[$lc] ?? $lang;
@@ -194,10 +194,11 @@ class OllamaTranslator implements TranslatorInterface
         $toName = $this->expandLang($to);
 
         $prompt = "You are a professional translation reviewer.\n";
-        $prompt .= "For each numbered entry, respond with the same number followed by VALID or INVALID: correction.\n\n";
+        $prompt .= "For each numbered entry, respond with the same number followed by VALID or INVALID: correction.\n";
+        $prompt .= "Critically important: If the translation is invalid, provide the FULL corrected translation, not just the fixed part.\n\n";
         $prompt .= "Example responses:\n";
         $prompt .= "1. VALID\n";
-        $prompt .= "2. INVALID: Au revoir\n\n";
+        $prompt .= "2. INVALID: Au revoir (Full correction)\n\n";
         $prompt .= "Entries to review:\n";
 
         $keys = [];
@@ -230,7 +231,30 @@ class OllamaTranslator implements TranslatorInterface
                         $correction = $verdict;
                         if (str_starts_with(strtoupper($verdict), 'INVALID:')) {
                             $correction = trim(substr($verdict, 8));
+                        } else {
+                            // If it doesn't start with VALID/INVALID, assume it's lost
+                            if (strpos($verdict, ' ') === false && str_word_count($entry['source']) > 1) {
+                                // Single word response for multi-word source? Suspect truncation/hallucination
+                                if (strpos($entry['source'], $verdict) !== false) {
+                                    // The LLM likely just outputted a segment of the source
+                                    $correction = $entry['source'];
+                                }
+                            }
                         }
+
+                        // Sanity check: if correction is a strict substring of the previous translation or source
+                        // and is significantly shorter, it's likely a truncation error
+                        if (strlen($correction) < strlen($entry['translation']) && strpos($entry['translation'], $correction) !== false) {
+                            // It's a substring of the original translation. 
+                            // Did the LLM mean to keep only that part? Or did it truncate?
+                            // If the length diff is > 50%, it's suspicious
+                            if (strlen($correction) < strlen($entry['translation']) / 2) {
+                                // Likely error. Ignore this correction.
+                                $results[$keys[$num]] = ['valid' => true, 'correction' => null];
+                                continue;
+                            }
+                        }
+
                         $results[$keys[$num]] = ['valid' => false, 'correction' => $correction];
                     }
                 }
@@ -289,12 +313,12 @@ class OllamaTranslator implements TranslatorInterface
         $comment = null;
 
         if ($valid) {
-             $comment = trim(substr($response, 5));
+            $comment = trim(substr($response, 5));
             if (empty($comment)) {
                 $comment = null;
             }
         } else {
-             // Try to extract correction
+            // Try to extract correction
             if (str_starts_with(strtoupper($response), 'INVALID:')) {
                 $correction = trim(substr($response, 8));
             } else {

@@ -502,9 +502,9 @@ class MultilingualTextCollector extends i18nTextCollector
                                     }
 
                                     $correctedCount++;
-                                    if ($this->debug) {
-                                        Debug::message("Review corrected [$rKey]: => '{$rResult['correction']}'");
-                                    }
+                                    // Always show corrections, not just in debug
+                                    Debug::message("Review fixed [$rKey]: '{$targetStr}' => '{$rResult['correction']}'");
+
                                     if (is_array($existingMessages[$rKey])) {
                                         $existingMessages[$rKey]['default'] = $rResult['correction'];
                                     } else {
@@ -537,9 +537,9 @@ class MultilingualTextCollector extends i18nTextCollector
                                 }
 
                                 $correctedCount++;
-                                if ($this->debug) {
-                                    Debug::message("Review corrected [$rKey]: => '{$rResult['correction']}'");
-                                }
+                                // Always show corrections, not just in debug
+                                Debug::message("Review fixed [$rKey]: '{$targetStr}' => '{$rResult['correction']}'");
+
                                 if (is_array($existingMessages[$rKey])) {
                                     $existingMessages[$rKey]['default'] = $rResult['correction'];
                                 } else {
