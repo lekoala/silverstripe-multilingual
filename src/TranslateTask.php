@@ -31,12 +31,12 @@ class TranslateTask extends BuildTask
     {
         $this->request = $request;
         $modules = $this->getModulesAndThemes();
-        
+
         // Options
         $this->addOption("module", "Module to translate", null, $modules);
         $this->addOption("locale", "Initial locale to verify (default: current locale)", null);
         $this->addOption("source_lang", "Source language for translation (default: en)", 'en');
-        
+
         $defaultDriver = TranslatorFactory::getDefaultDriver();
         $this->addOption("driver", "Translator driver (ollama or deepl) [default: $defaultDriver]", null);
         $this->addOption("model", "Ollama model", null);
@@ -61,9 +61,7 @@ class TranslateTask extends BuildTask
         $translator = TranslatorFactory::create($driver, $model);
         $this->message("Using driver: " . get_class($translator));
 
-        if ($module) {
-            $this->processModule($module, $translator, $sourceLang, $locale, $limit, $write);
-        }
+        $this->processModule($module, $translator, $sourceLang, $locale, $limit, $write);
     }
 
     protected function processModule($module, $translator, $sourceLang, $targetLocale = null, $limit = 50, $write = false)
@@ -81,8 +79,8 @@ class TranslateTask extends BuildTask
         $sourceMessages = [];
         $sourceFile = $fullLangPath . '/' . $sourceLang . '.yml';
         if (file_exists($sourceFile)) {
-             $reader = new YamlReader;
-             $sourceMessages = $reader->read($sourceLang, $sourceFile);
+            $reader = new YamlReader;
+            $sourceMessages = $reader->read($sourceLang, $sourceFile);
         } else {
             $this->message("Source language file $sourceLang.yml not found. Using default.");
         }
@@ -91,14 +89,14 @@ class TranslateTask extends BuildTask
 
         foreach ($translationFiles as $file) {
             $lang = pathinfo($file, PATHINFO_FILENAME);
-             
+
             // Skip source lang
             if ($lang === $sourceLang) {
                 continue;
             }
             // Skip if not target locale matches
             if ($targetLocale && $lang !== $targetLocale) {
-                 continue;
+                continue;
             }
 
             $reader = new YamlReader();
@@ -121,28 +119,28 @@ class TranslateTask extends BuildTask
                     $context = null;
                     $keyParts = explode('.', $key);
                     if (count($keyParts) > 1) {
-                         $className = basename(str_replace('\\', '/', $keyParts[0]));
-                         $fieldName = end($keyParts);
-                         $context = "Field '$fieldName' in '$className'";
+                        $className = basename(str_replace('\\', '/', $keyParts[0]));
+                        $fieldName = end($keyParts);
+                        $context = "Field '$fieldName' in '$className'";
                     }
 
                     // Translate
                     try {
                         if (is_array($sourceVal)) {
                             // Skip array values for now or handle plural
-                             continue;
+                            continue;
                         }
-                        
+
                         $this->message("Translating '$key' ($lang)...");
                         $translated = $translator->translateWithReference($sourceVal, $lang, $sourceLang, $sourceVal, $sourceLang, $context);
-                        
+
                         if ($translated) {
                             $messages[$key] = $translated;
                             $count++;
                             $updated = true;
                         }
                     } catch (Exception $e) {
-                         $this->message("Error translating $key: " . $e->getMessage(), "error");
+                        $this->message("Error translating $key: " . $e->getMessage(), "error");
                     }
                 }
             }

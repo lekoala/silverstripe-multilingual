@@ -240,7 +240,6 @@ class TranslationsImportExportTask extends BuildTask
      * @param boolean $excel
      * @param array<string> $onlyLang
      * @param bool $untranslated
-     * @param bool $translate
      * @return void
      */
     public function exportTranslations($module, $excel = true, $onlyLang = [], $untranslated = false)

@@ -244,11 +244,13 @@ class OllamaTranslator implements TranslatorInterface
 
                         // Sanity check: if correction is a strict substring of the previous translation or source
                         // and is significantly shorter, it's likely a truncation error
-                        if (strlen($correction) < strlen($entry['translation']) && strpos($entry['translation'], $correction) !== false) {
+                        $correctionStr = (string)$correction;
+                        $translationStr = (string)$entry['translation'];
+                        if (strlen($correctionStr) < strlen($translationStr) && strpos($translationStr, $correctionStr) !== false) {
                             // It's a substring of the original translation. 
                             // Did the LLM mean to keep only that part? Or did it truncate?
                             // If the length diff is > 50%, it's suspicious
-                            if (strlen($correction) < strlen($entry['translation']) / 2) {
+                            if (strlen($correctionStr) < strlen($translationStr) / 2) {
                                 // Likely error. Ignore this correction.
                                 $results[$keys[$num]] = ['valid' => true, 'correction' => null];
                                 continue;

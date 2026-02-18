@@ -260,7 +260,7 @@ class GlossaryTask extends BuildTask
 
             // Save map
             $map['glossary_id'] = $glossary->glossaryId;
-            $map['name'] = $glossary->name ?? self::GLOSSARY_NAME;
+            $map['name'] = $glossary->name ?: self::GLOSSARY_NAME;
             $map['synced_at'] = date('c');
 
             file_put_contents($mapFile, json_encode($map, JSON_PRETTY_PRINT));

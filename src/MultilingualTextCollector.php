@@ -541,6 +541,12 @@ class MultilingualTextCollector extends i18nTextCollector
                         Debug::message("Reviewing batch $reviewTotal...");
                         $batchResults = $translator->reviewBatch($reviewBatch, $targetLangName, $sourceLang);
                         foreach ($batchResults as $rKey => $rResult) {
+                            // Re-fetch source and target strings for validation
+                            $targetText = $existingMessages[$rKey] ?? '';
+                            $targetStr = is_array($targetText) ? ($targetText['default'] ?? '') : $targetText;
+                            $sourceText = $sourceMessages[$rKey] ?? '';
+                            $sourceStr = is_array($sourceText) ? ($sourceText['default'] ?? '') : $sourceText;
+
                             if (!$rResult['valid'] && $rResult['correction']) {
                                 // Validate variables in correction
                                 if (!$this->checkVariables($sourceStr, $rResult['correction'])) {

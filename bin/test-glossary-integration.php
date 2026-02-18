@@ -103,7 +103,8 @@ echo "\n--- Testing Full Sentence Translation (Ollama) ---\n";
 try {
     $translator = new OllamaTranslator();
 
-    // Test 1: Previous sentence
+    // Test 1: Use glossary
+    // TODO: LLM currently does NOT use achter_naam (forced translation)
     $text1 = "I work at My Software and my firstname is John and my surname is Doe";
     echo "Original 1: $text1\n";
     $context1 = $collector->testAppend("Review required", $glossary, $text1);
@@ -113,6 +114,7 @@ try {
     echo "Translation 1: $trans1\n";
 
     // Test 2: Ambiguous term (Appointment) - should use glossary 'Benoeming'
+    // TODO: LLM currently does NOT use chosen translation
     $text2 = "I have an important appointment today.";
     echo "\nOriginal 2: $text2\n";
     $context2 = $collector->testAppend("Review required", $glossary, $text2);
