@@ -41,9 +41,18 @@ The `GlossaryTask::sync` action uses the `replaceMultilingualGlossaryDictionary`
 
 ## Automatic Application
 
-The `DeeplTranslator` is designed to be "zero-config" regarding glossaries. During a translation request:
-
 1. It checks for a `map.json` file in the relevant module.
 2. If found, it extracts the `glossary_id`.
 3. It passes this ID to the DeepL API.
 4. DeepL's engine automatically resolves the correct dictionary to use based on the `source` and `target` languages provided in the translation call.
+
+## Ollama Support
+
+The `OllamaTranslator` also supports glossaries via context injection:
+
+1. It looks for CSV files in `<module>/lang/glossaries/{source}-{target}.csv`.
+2. If found, it reads the terms.
+3. It filters the list to include only relevant terms
+4. It appends the terms to the context prompt sent to the LLM as a json
+
+This helps that the LLM is aware of specific terminology constraints during translation and review.

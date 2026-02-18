@@ -7,8 +7,8 @@ use Symfony\Component\Yaml\Yaml;
 
 $translator = new OllamaTranslator();
 
-$enFile = __DIR__ . '/test/en.yml';
-$frFile = __DIR__ . '/test/fr.yml';
+$enFile = __DIR__ . '/test/lang/en.yml';
+$frFile = __DIR__ . '/test/lang/fr.yml';
 
 // Check if files exist and are not empty
 if (!file_exists($enFile) || filesize($enFile) === 0) {
@@ -54,7 +54,7 @@ echo "--- Starting Audit ---\n";
 
 foreach ($flatTarget as $key => $targetText) {
     $sourceText = $flatSource[$key] ?? null;
-    
+
     echo "\nChecking: $key\n";
     echo "Source (en): $sourceText\n";
     echo "Target (fr): $targetText\n";

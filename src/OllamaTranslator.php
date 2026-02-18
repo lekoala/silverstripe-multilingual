@@ -77,7 +77,7 @@ class OllamaTranslator implements TranslatorInterface
         $prompt = "You are a professional $fromName ($fromCode) to $toName ($toCode) translator. Your goal is to accurately convey the meaning and nuances of the original $fromName text while adhering to $toName grammar, vocabulary, and cultural sensitivities.";
         if ($context) {
             // Limit context length to avoid token limit issues
-            $context = mb_strimwidth($context, 0, 200, '...');
+            $context = mb_strimwidth($context, 0, 1000, '...');
             $prompt .= "\nContext: $context";
         }
         if ($refString && $refLang) {

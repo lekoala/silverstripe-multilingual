@@ -28,7 +28,6 @@ class MultilingualTextCollectorVariableTest extends TestCase
             ['at', 'à {code}', false], // Introduced variable
             ['at', 'à {}', true], // Empty braces are ignored by regex
             ['at', 'à { code }', true], // Spaces in braces are ignored by regex
-
         ];
 
         foreach ($scenarios as [$source, $target, $expected]) {

@@ -15,6 +15,7 @@ use SilverStripe\i18n\TextCollection\Parser;
 use SilverStripe\i18n\TextCollection\i18nTextCollector;
 use SilverStripe\Core\Path;
 use SilverStripe\Core\Environment;
+use LeKoala\Multilingual\GlossaryTask;
 
 /**
  * Improved text collector
@@ -356,6 +357,12 @@ class MultilingualTextCollector extends i18nTextCollector
                             'context' => $context,
                             'original' => $newMessageVal,
                         ];
+
+                        // Add glossary to context if available
+                        $glossary = $this->loadGlossary($modules[$module], $sourceLang, $targetLangName);
+                        if ($glossary) {
+                            $batch[count($batch) - 1]['context'] = $this->appendGlossaryToContext($context, $glossary, $stringVal);
+                        }
                     }
 
                     // Flush batch when full
@@ -486,6 +493,13 @@ class MultilingualTextCollector extends i18nTextCollector
                             'translation' => $targetStr,
                             'context' => $context,
                         ];
+
+                        // Add glossary to context if available
+                        $glossary = $this->loadGlossary($modules[$module], $sourceLang, $targetLangName);
+                        if ($glossary) {
+                            $reviewBatch[count($reviewBatch) - 1]['context'] = $this->appendGlossaryToContext($context, $glossary, $sourceStr);
+                        }
+
                         $reviewTotal++;
 
                         if (count($reviewBatch) >= $batchSize) {
@@ -902,5 +916,57 @@ class MultilingualTextCollector extends i18nTextCollector
             }
         }
         return $context;
+    }
+
+    /**
+     * @param Module|object $module
+     * @param string $sourceLang
+     * @param string $targetLang
+     * @return array<string,string>
+     */
+    protected function loadGlossary($module, string $sourceLang, string $targetLang): array
+    {
+        $path = $module->getPath() . '/lang/glossaries';
+        $file = "$path/$sourceLang-$targetLang.csv";
+
+        if (!file_exists($file)) {
+            return [];
+        }
+
+        $entries = [];
+        if (($handle = fopen($file, "r")) !== false) {
+            while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+                if (count($data) >= 2) {
+                    $entries[trim($data[0])] = trim($data[1]);
+                }
+            }
+            fclose($handle);
+        }
+        return $entries;
+    }
+
+    protected function appendGlossaryToContext(?string $context, array $glossary, ?string $sourceContent = null): string
+    {
+        $filteredGlossary = [];
+        // Filter based on source content if provided
+        if ($sourceContent) {
+            foreach ($glossary as $term => $translation) {
+                // Case insensitive check
+                if (stripos($sourceContent, $term) !== false) {
+                    $filteredGlossary[$term] = $translation;
+                }
+            }
+        } else {
+            $filteredGlossary = $glossary;
+        }
+
+        if (empty($filteredGlossary)) {
+            return $context ?? "";
+        }
+
+        $context = $context ? "$context. " : "";
+        $context .= "IMPORTANT: The following JSON contains mandatory translations (case insensitive). You MUST use these values:\n";
+        $context .= json_encode($filteredGlossary);
+        return trim($context);
     }
 }

@@ -97,20 +97,45 @@ test("Context Translation", function () use ($translator) {
     }
 });
 
+test("Glossary Usage (Context)", function () use ($translator) {
+    $text = 'My Software group';
+    $from = 'en';
+    $to = 'nl';
+
+    echo "Original: $text\n";
+
+    // Without glossary/context (likely to translate literal)
+    $t1 = $translator->translate($text, $to, $from);
+    echo "Without context: $t1\n";
+
+    // With context acting as glossary
+    // Prompting the model to keep specific terms
+    $context = "Glossary: 'My Software' is a product name and must stay in English.";
+    echo "Context: $context\n";
+    $t2 = $translator->translate($text, $to, $from, $context);
+    echo "With context: $t2\n";
+
+    if (strpos($t2, 'My Software') !== false) {
+        echo "PASS: 'My Software' preserved with context\n";
+    } else {
+        echo "FAIL: 'My Software' translated even with context\n";
+    }
+});
+
 test("Variable Correction", function () use ($translator) {
     // This mocks the condition where the model translates the variable name
     $original = "My {speciality}";
     $brokenTranslation = "Mijn {specialiteit}";
-    
+
     // We can't really force the model to fail, so let's unit test the logic if possible
     // Or we subclass just for testing?
     // Let's rely on reflection to test the protective method
     $reflection = new ReflectionClass($translator);
     $method = $reflection->getMethod('fixVariables');
     $method->setAccessible(true);
-    
+
     $fixed = $method->invoke($translator, $original, $brokenTranslation);
-    
+
     echo "Original: $original\n";
     echo "Broken: $brokenTranslation\n";
     echo "Fixed: $fixed\n";
