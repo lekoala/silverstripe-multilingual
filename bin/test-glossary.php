@@ -1,5 +1,10 @@
 <?php
 
+// Not installed locally
+if (!is_file(__DIR__ . '/../vendor/autoload.php')) {
+    return;
+}
+
 require __DIR__ . '/../vendor/autoload.php';
 
 use LeKoala\Multilingual\DeeplTranslator;
@@ -25,11 +30,13 @@ file_put_contents($tempMap, json_encode(['glossary_id' => $mockId]));
 // Use anonymous class to override path for testing
 $translator = new class($key, $tempMap) extends DeeplTranslator {
     protected $testPath;
-    public function __construct($key, $path) {
+    public function __construct($key, $path)
+    {
         parent::__construct($key);
         $this->testPath = $path;
     }
-    protected function getGlossaryMapPath(): string {
+    protected function getGlossaryMapPath(): string
+    {
         return $this->testPath;
     }
 };
@@ -56,13 +63,13 @@ if ($key !== 'mock-key') {
         $from = 'en';
         $to = 'fr';
         echo "Translating '$text' from $from to $to using glossary $id...\n";
-        
+
         $start = microtime(true);
         // Note: This might fail if the glossary ID doesn't exist on DeepL side, 
         // but it proves the parameter is being passed.
         $translation = $translator->translate($text, $to, $from);
         $end = microtime(true);
-        
+
         echo "Translation: $translation\n";
         echo "Time: " . round($end - $start, 2) . "s\n";
         echo "✅ Success: API call completed (check if glossary was applied if you have real entries)\n";

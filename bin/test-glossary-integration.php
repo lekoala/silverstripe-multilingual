@@ -1,11 +1,16 @@
 <?php
 
+// Not installed locally
+if (!is_file(__DIR__ . '/../vendor/autoload.php')) {
+    return;
+}
+
+require __DIR__ . '/../vendor/autoload.php';
+
 use SilverStripe\Core\Injector\Injector;
 use LeKoala\Multilingual\MultilingualTextCollector;
 use LeKoala\Multilingual\OllamaTranslator;
 use SilverStripe\Core\Manifest\ModuleLoader;
-
-require __DIR__ . '/../vendor/autoload.php';
 
 // Mock Module
 $modulePath = __DIR__ . '/test';

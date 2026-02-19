@@ -1,5 +1,10 @@
 <?php
 
+// Not installed locally
+if (!is_file(__DIR__ . '/../vendor/autoload.php')) {
+    return;
+}
+
 require __DIR__ . '/../vendor/autoload.php';
 
 use LeKoala\Multilingual\DeeplTranslator;
