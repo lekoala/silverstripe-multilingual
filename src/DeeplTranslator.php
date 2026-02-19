@@ -96,6 +96,9 @@ class DeeplTranslator implements TranslatorInterface
             $options['glossary_id'] = $glossaryId;
         }
 
+        $to = $this->normalizeToCode($to);
+        $from = $this->normalizeFromCode($from);
+
         $result = $this->client->translateText($string, $from, $to, $options);
         $translation = $result->text;
 
@@ -117,6 +120,9 @@ class DeeplTranslator implements TranslatorInterface
             $ctx = $entry['context'] ?? '';
             $groups[$ctx][] = $entry;
         }
+
+        $to = $this->normalizeToCode($to);
+        $from = $this->normalizeFromCode($from);
 
         $results = [];
         foreach ($groups as $ctx => $groupEntries) {
@@ -194,5 +200,35 @@ class DeeplTranslator implements TranslatorInterface
             }
         }
         return $results;
+    }
+
+    /**
+     * Normalize target language code.
+     * DeepL requires regional variants for EN and PT.
+     *
+     * @param string $code
+     * @return string
+     */
+    protected function normalizeToCode(string $code): string
+    {
+        $code = strtoupper(str_replace('_', '-', $code));
+        if ($code === 'EN') {
+            return 'EN-US';
+        }
+        if ($code === 'PT') {
+            return 'PT-PT';
+        }
+        return $code;
+    }
+
+    /**
+     * Normalize source language code.
+     *
+     * @param string $code
+     * @return string
+     */
+    protected function normalizeFromCode(string $code): string
+    {
+        return strtoupper(str_replace('_', '-', $code));
     }
 }
