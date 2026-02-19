@@ -61,6 +61,9 @@ class DeeplTranslator implements TranslatorInterface
         return Director::baseFolder() . '/app/lang/glossaries/map.json';
     }
 
+    protected ?string $glossaryId = null;
+    protected bool $glossaryIdChecked = false;
+
     /**
      * Get the glossary ID for translation requests.
      * V3 API uses one multilingual glossary — DeepL resolves the correct dictionary.
@@ -69,16 +72,17 @@ class DeeplTranslator implements TranslatorInterface
      */
     protected function getGlossaryId(): ?string
     {
-        static $glossaryId = false;
-        if ($glossaryId === false) {
-            $glossaryId = null;
-            $path = $this->getGlossaryMapPath();
-            if (file_exists($path)) {
-                $map = json_decode(file_get_contents($path), true);
-                $glossaryId = $map['glossary_id'] ?? null;
-            }
+        if ($this->glossaryIdChecked) {
+            return $this->glossaryId;
         }
-        return $glossaryId;
+        $this->glossaryId = null;
+        $path = $this->getGlossaryMapPath();
+        if (file_exists($path)) {
+            $map = json_decode(file_get_contents($path), true);
+            $this->glossaryId = $map['glossary_id'] ?? null;
+        }
+        $this->glossaryIdChecked = true;
+        return $this->glossaryId;
     }
 
     public function translate(?string $string, string $to, string $from, ?string $context = null): string
