@@ -64,4 +64,35 @@ class DeeplTranslatorTest extends SapphireTest
         $result = $translator->translate('Hello', 'en', 'en');
         $this->assertEquals('Bonjour', $result);
     }
+
+    public function testTranslateBatchWithPacing()
+    {
+        $mockClient = $this->getMockBuilder(DeepLClient::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        // Expect 2 calls because of 2 different contexts
+        $mockClient->expects($this->exactly(2))
+            ->method('translateText')
+            ->willReturn((object)['text' => 'Translated']);
+
+        $translator = new DeeplTranslator('dummy-key');
+
+        $reflection = new ReflectionClass(DeeplTranslator::class);
+        $clientProp = $reflection->getProperty('client');
+        $clientProp->setAccessible(true);
+        $clientProp->setValue($translator, $mockClient);
+
+        $entries = [
+            ['key' => 'k1', 'value' => 'v1', 'context' => 'ctx1'],
+            ['key' => 'k2', 'value' => 'v2', 'context' => 'ctx2'],
+        ];
+
+        $start = microtime(true);
+        $translator->translateBatch($entries, 'fr', 'en');
+        $end = microtime(true);
+
+        // We expect at least 100ms delay between two groups
+        $this->assertGreaterThanOrEqual(0.1, $end - $start);
+    }
 }

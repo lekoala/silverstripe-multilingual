@@ -53,6 +53,8 @@ class DeeplTranslator implements TranslatorInterface
             }
         }
 
+        $options[TranslatorOptions::MAX_RETRIES] = 10;
+
         $this->client = new DeepLClient($apiKey, $options);
     }
 
@@ -64,12 +66,6 @@ class DeeplTranslator implements TranslatorInterface
     protected ?string $glossaryId = null;
     protected bool $glossaryIdChecked = false;
 
-    /**
-     * Get the glossary ID for translation requests.
-     * V3 API uses one multilingual glossary — DeepL resolves the correct dictionary.
-     *
-     * @return string|null
-     */
     protected function getGlossaryId(): ?string
     {
         if ($this->glossaryIdChecked) {
@@ -129,7 +125,14 @@ class DeeplTranslator implements TranslatorInterface
         $from = $this->normalizeFromCode($from);
 
         $results = [];
+        $groupCount = 0;
         foreach ($groups as $ctx => $groupEntries) {
+            if ($groupCount > 0) {
+                // Pacing: wait 100ms between context groups
+                usleep(100000);
+            }
+            $groupCount++;
+
             $groupTexts = array_column($groupEntries, 'value');
             $groupKeys = array_column($groupEntries, 'key');
             $options = [];
@@ -154,6 +157,23 @@ class DeeplTranslator implements TranslatorInterface
                     $results[$key] = $this->fixVariables($groupEntries[$idx]['value'], $tResult->text);
                 }
             } catch (Exception $e) {
+                // If it's a rate limit error, wait and retry once at app level
+                if (strpos(get_class($e), 'TooManyRequestsException') !== false) {
+                    sleep(2);
+                    try {
+                        $translations = $this->client->translateText($groupTexts, $from, $to, $options);
+                        if (!is_array($translations)) {
+                            $translations = [$translations];
+                        }
+                        foreach ($translations as $idx => $tResult) {
+                            $key = $groupKeys[$idx];
+                            $results[$key] = $this->fixVariables($groupEntries[$idx]['value'], $tResult->text);
+                        }
+                        continue;
+                    } catch (Exception $e2) {
+                        // Still fails, skip this group
+                    }
+                }
                 // Return empty or partial results? For now let it bubble or log?
                 // The interface expects array return. If failure, keys will be missing.
             }
