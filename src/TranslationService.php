@@ -114,12 +114,16 @@ class TranslationService
             if (!empty($toTranslate)) {
                 $batch = [];
                 foreach ($toTranslate as $key => $spec) {
-                    if ($translated >= $limit) break;
+                    if ($translated >= $limit) {
+                        break;
+                    }
 
                     $context = $this->deriveContext($key, $spec);
                     $stringVal = is_array($spec) ? ($spec['default'] ?? '') : (string)$spec;
 
-                    if (empty($stringVal)) continue;
+                    if (empty($stringVal)) {
+                        continue;
+                    }
 
                     $batch[] = [
                         'key' => $key,
@@ -145,15 +149,21 @@ class TranslationService
         if ($reviewTranslations) {
             $batch = [];
             foreach ($targetMessages as $key => $targetVal) {
-                if ($corrected >= $limit) break;
+                if ($corrected >= $limit) {
+                    break;
+                }
 
                 $sourceVal = $sourceMessages[$key] ?? null;
-                if (!$sourceVal) continue;
+                if (!$sourceVal) {
+                    continue;
+                }
 
                 $sourceStr = is_array($sourceVal) ? ($sourceVal['default'] ?? '') : (string)$sourceVal;
                 $targetStr = is_array($targetVal) ? ($targetVal['default'] ?? '') : (string)$targetVal;
 
-                if (empty($sourceStr) || empty($targetStr) || $sourceStr === $targetStr) continue;
+                if (empty($sourceStr) || empty($targetStr) || $sourceStr === $targetStr) {
+                    continue;
+                }
 
                 $batch[] = [
                     'key' => $key,

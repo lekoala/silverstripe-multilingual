@@ -11,11 +11,14 @@ class RichCollectionTest extends TestCase
     public function testCollectionCapturesContext()
     {
         $collector = new class extends MultilingualTextCollector {
-            public function __construct() {}
+            public function __construct()
+            {
+            }
         };
 
         $content = '<?php _t("MyClass.MY_KEY", "Original String")';
-        $module = new class('app', 'app', '/tmp') extends Module {};
+        $module = new class('/tmp/app', '/tmp') extends Module {
+        };
 
         $entities = $collector->collectFromCode($content, 'src/MyClass.php', $module);
 
@@ -29,7 +32,9 @@ class RichCollectionTest extends TestCase
     public function testWriteFlattensSpec()
     {
         $collector = new class extends MultilingualTextCollector {
-            public function __construct() {}
+            public function __construct()
+            {
+            }
         };
 
         $richSpec = [
