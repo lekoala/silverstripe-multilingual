@@ -9,6 +9,12 @@ use ReflectionClass;
 
 class DeeplTranslatorTest extends SapphireTest
 {
+    public static function tearDownAfterClass(): void
+    {
+        // Call state helpers
+        // static::$state->tearDownOnce(static::class);
+    }
+
     public function testNormalization()
     {
         // We need a dummy API key to initialize the translator

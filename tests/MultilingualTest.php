@@ -7,10 +7,19 @@ use LeKoala\Multilingual\LangHelper;
 use LeKoala\Multilingual\GoogleTranslateHelper;
 use LeKoala\Multilingual\MultilingualTextCollector;
 use LeKoala\Multilingual\TranslationsImportExportTask;
+use LeKoala\Multilingual\TranslationService;
+use LeKoala\Multilingual\OllamaTranslator;
+use LeKoala\Multilingual\TranslatorInterface;
 use SilverStripe\i18n\i18n;
 
 class MultilingualTest extends SapphireTest
 {
+    public static function tearDownAfterClass(): void
+    {
+        // Call state helpers
+        // static::$state->tearDownOnce(static::class);
+    }
+
     public function testHelper(): void
     {
         $lang = LangHelper::get_lang();
@@ -44,20 +53,6 @@ class MultilingualTest extends SapphireTest
 
         $this->assertStringContainsString("Éditer ce fichier", $res);
     }
-
-    /*
-    Deprecated, not tested anymore
-    public function testTranslator(): void
-    {
-        $sourceText = 'Hello';
-
-        $translation = GoogleTranslateHelper::google_translate($sourceText, 'fr', 'en');
-        $this->assertEquals('Bonjour', $translation);
-
-        $translation = GoogleTranslateHelper::proxy_translate($sourceText, 'fr', 'en');
-        $this->assertEquals('Bonjour', $translation);
-    }
-    */
 
     public function testWithLocale(): void
     {
@@ -101,10 +96,10 @@ class MultilingualTest extends SapphireTest
         $this->assertEquals('en', $translator->expandLang('english', true));
     }
 
-    public function testCollectorAutoTranslate()
+    public function testTranslationServiceAutoTranslate()
     {
         // Mock the translator
-        $translator = $this->getMockBuilder(\LeKoala\Multilingual\OllamaTranslator::class)
+        $translator = $this->getMockBuilder(OllamaTranslator::class)
             ->setMethods(['translate', 'translateBatch'])
             ->getMock();
         $translator->method('translate')
@@ -118,65 +113,50 @@ class MultilingualTest extends SapphireTest
                 return $results;
             }));
 
-        // Mock the collector to expose protected methods and control data
-        $collector = $this->getMockBuilder(MultilingualTextCollector::class)
-            ->setMethods(['getModulesAndThemesExposed', 'getReader', 'write'])
-            ->getMock();
-
-        // Inject our mock translator
-        $collector->setTranslator($translator);
-        $collector->setAutoTranslate(true, 'en', 'new');
+        $service = new TranslationService($translator);
 
         // Mock module data
-        $dummyPath = sys_get_temp_dir() . '/' . uniqid('multilingual_test_');
-        // Create a dummy lang file
+        $dummyPath = sys_get_temp_dir() . '/' . uniqid('multilingual_test_service_');
         $langDir = $dummyPath . '/lang';
         if (!mkdir($langDir, 0777, true) && !is_dir($langDir)) {
-             throw new \RuntimeException(sprintf('Directory "%s" was not created', $langDir));
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $langDir));
         }
-        $langFile = $langDir . '/en.yml';
-        file_put_contents($langFile, "en:\n  MyEntity: 'Existing'");
 
+        // Create source lang file
+        $sourceFile = $langDir . '/en.yml';
+        file_put_contents($sourceFile, "en:\n  MyEntity: 'Existing'\n  NewEntity: 'New String'");
+
+        // Create target lang file
+        $targetFile = $langDir . '/fr.yml';
+        file_put_contents($targetFile, "fr:\n  MyEntity: 'Existant'");
+
+        // We need to mock ModuleLoader to return our dummy module
         $mockModule = $this->getMockBuilder(\SilverStripe\Core\Manifest\Module::class)
             ->disableOriginalConstructor()
             ->setMethods(['getPath'])
             ->getMock();
         $mockModule->method('getPath')->willReturn($dummyPath);
 
-        $collector->method('getModulesAndThemesExposed')->willReturn([
-            'mymodule' => $mockModule
-        ]);
-
-        // Mock reader to return existing messages
-        $mockReader = $this->getMockBuilder(\SilverStripe\i18n\Messages\Reader::class)
-            ->setMethods(['read'])
+        $mockManifest = $this->getMockBuilder(\SilverStripe\Core\Manifest\ModuleManifest::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['getModules'])
             ->getMock();
-        $mockReader->method('read')->willReturn([
-            'MyEntity' => 'Existing',
+        $mockManifest->method('getModules')->willReturn(['mymodule' => $mockModule]);
+
+        \SilverStripe\Core\Manifest\ModuleLoader::inst()->pushManifest($mockManifest);
+
+        // Run translation
+        $result = $service->translateModule('mymodule', 'en', 'fr', [
+            'auto_translate' => true,
+            'enrich' => false // Don't use collector for this test to avoid complexity
         ]);
-        $collector->method('getReader')->willReturn($mockReader);
 
-        // We want to trigger mergeWithExisting
-        // It requires entitiesByModule
-        $entitiesByModule = [
-            'mymodule' => [
-                'MyEntity' => 'Existing', // Same value
-                'NewEntity' => 'New String' // New value -> should trigger translation
-            ]
-        ];
-
-        // Access protected method
-        $reflection = new \ReflectionClass(MultilingualTextCollector::class);
-        $method = $reflection->getMethod('mergeWithExisting');
-        $method->setAccessible(true);
-
-        // Run
-        $result = $method->invoke($collector, $entitiesByModule);
-
-        // Check that translation happened and was merged
-        $this->assertEquals("Translated", $result['mymodule']['NewEntity']);
+        $this->assertEquals("Translated", $result['messages']['NewEntity']);
+        $this->assertEquals("Existant", $result['messages']['MyEntity']);
 
         // Cleanup
+        \SilverStripe\Core\Manifest\ModuleLoader::inst()->popManifest();
+
         $files = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($dummyPath, \RecursiveDirectoryIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::CHILD_FIRST
@@ -186,7 +166,6 @@ class MultilingualTest extends SapphireTest
             $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
             $todo($fileinfo->getRealPath());
         }
-
         rmdir($dummyPath);
     }
 }

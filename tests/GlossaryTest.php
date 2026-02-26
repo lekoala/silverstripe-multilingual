@@ -106,7 +106,7 @@ class GlossaryTest extends TestCase
     {
         $glossaryDir = $this->tempPath . '/glossaries';
         mkdir($glossaryDir, 0777, true);
-        
+
         $mapFile = $glossaryDir . '/map.json';
         file_put_contents($mapFile, json_encode(['glossary_id' => 'abc-123']));
 
@@ -127,6 +127,7 @@ class GlossaryTest extends TestCase
         };
         $translator->tp = $this->tempPath;
 
+        /** @disregard */
         $id = $translator->testGetGlossaryId();
         $this->assertEquals('abc-123', $id);
     }

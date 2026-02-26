@@ -28,7 +28,8 @@
         "phpstan/phpstan": "^2.1",
         "deeplcom/deepl-php": "^1.16",
         "tractorcow/silverstripe-fluent": "^7.3",
-        "phpoffice/phpspreadsheet": "^5.4"
+        "phpoffice/phpspreadsheet": "^5.4",
+        "lekoala/silverstripe-excel-import-export": "^3.1"
     },
     "suggest": {
         "tractorcow/silverstripe-fluent": "Add multi locales support",
