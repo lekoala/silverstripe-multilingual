@@ -4,33 +4,12 @@ namespace LeKoala\Multilingual\Test;
 
 use PHPUnit\Framework\TestCase;
 use LeKoala\Multilingual\MultilingualTextCollector;
+use LeKoala\Multilingual\Test\Mocks\TestMultilingualTextCollector;
 use SilverStripe\Core\Manifest\Module;
 use SilverStripe\Core\Manifest\ModuleLoader;
 use SilverStripe\Core\Manifest\ModuleManifest;
 use SilverStripe\i18n\Messages\YamlReader;
 use ReflectionClass;
-
-class TestMultilingualTextCollector extends MultilingualTextCollector
-{
-    public $mockModule;
-
-    public function __construct($reader, $mockModule)
-    {
-        $this->reader = $reader;
-        $this->mockModule = $mockModule;
-        $this->setClearUnused(true);
-    }
-
-    protected function getModulesAndThemes()
-    {
-        return ['mymodule' => $this->mockModule];
-    }
-
-    protected function getModuleName($name, $module)
-    {
-        return $name;
-    }
-}
 
 class ClearUnusedTest extends TestCase
 {
