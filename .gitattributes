@@ -1,0 +1,11 @@
+.codecov.yml export-ignore
+.editorconfig export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.scrutinizer.yml export-ignore
+/.github export-ignore
+/bin export-ignore
+/tests export-ignore
+phpcs.xml.dist export-ignore
+phpstan.neon export-ignore
+phpunit.xml.dist export-ignore
